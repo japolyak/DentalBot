@@ -1,6 +1,7 @@
 import mariadb
 import sys
 
+
 def get_db():
     try:
         conn = mariadb.connect(
