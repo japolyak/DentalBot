@@ -1,25 +1,10 @@
 import telebot
 import db
 from telebot import types
+import functions
 from config import token
 
 bot = telebot.TeleBot(token)
-
-
-def welcome_word(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-
-    position_button = types.KeyboardButton("Товари")
-    basket_button = types.KeyboardButton("Кошик")
-    profile_button = types.KeyboardButton("Профіль")
-    info_button = types.KeyboardButton("Інфо")
-
-    markup.add(position_button,
-               basket_button,
-               profile_button,
-               info_button)
-
-    bot.send_message(message.chat.id, "Welcome to the club, buddy!", reply_markup=markup)
 
 
 @bot.message_handler(commands=['start'])
@@ -41,7 +26,7 @@ def start(message):
                          "You are not in DB\nEnter your number by pushing button below",
                          reply_markup=markup)
     else:
-        welcome_word(message)
+        functions.welcome_word(message)
 
 
 @bot.message_handler(content_types=['contact'])
@@ -59,57 +44,15 @@ def check_phone(message):
     msg = bot.send_message(message.chat.id,
                            "Enter your dental name",
                            reply_markup=telebot.types.ReplyKeyboardRemove())
-    bot.register_next_step_handler(msg, name_handler)
-
-
-def name_handler(message):
-    conn = db.get_db()
-    cur = conn.cursor()
-
-    cur.execute("""UPDATE polls_clients
-                    SET
-                        client_name = ?
-                    WHERE
-                        client_id = ?;""", (message.text, message.from_user.id))
-    conn.commit()
-
-    msg = bot.send_message(message.chat.id,
-                           "Enter your address",
-                           reply_markup=telebot.types.ReplyKeyboardRemove(selective=False))
-    bot.register_next_step_handler(msg, address_handler)
-
-
-def address_handler(message):
-    conn = db.get_db()
-    cur = conn.cursor()
-
-    cur.execute("""UPDATE polls_clients
-                    SET
-                        client_address = ?
-                    WHERE
-                        client_id = ?;""", (message.text, message.from_user.id))
-    conn.commit()
-
-    welcome_word(message)
-
-
-# @bot.message_handler(regexp="Товари")
-# def buttons_handler(message):
-#     markup = types.InlineKeyboardMarkup()
-#     markup.add(types.InlineKeyboardButton("First"),
-#                types.InlineKeyboardButton("Second"),
-#                types.InlineKeyboardButton("Third"),
-#                types.InlineKeyboardButton("Fourth"))
-#
-#     bot.send_message(message.chat.id, "Choose type of work!", reply_markup=markup)
+    bot.register_next_step_handler(msg, functions.name_handler)
 
 
 @bot.message_handler(regexp="Товари")
 def category(message):
-    bot.send_message(message.chat.id, "Привет! Я помогу подобрать товар!", reply_markup=keyboard('start'))
+    bot.send_message(message.chat.id, "Привет! Я помогу подобрать товар!", reply_markup=functions.keyboard('start'))
 
 
-@bot.message_handler(regexp="Кошик")
+@bot.message_handler(regexp="Cart")
 def buttons_handler(message):
     conn = db.get_db()
     cur = conn.cursor()
@@ -138,63 +81,6 @@ def buttons_handler(message):
     bot.send_message(message.chat.id, "Bla bla bla.")
 
 
-def keyboard(call):
-    if call == "start":
-        conn = db.get_db()
-        cur = conn.cursor()
-
-        cur.execute("""select distinct category from polls_products;""")
-        list_of_goods = []
-
-        while True:
-            category_item = cur.next()
-            if not category_item:
-                break
-            list_of_goods.append(category_item[0])
-
-        buttons = []
-
-        for good in list_of_goods:
-            # buttons.append(types.InlineKeyboardButton(text=good, callback_data=good))
-            buttons.append(types.InlineKeyboardButton(text=good,
-                                                      switch_inline_query_current_chat=good))
-
-        markup = types.InlineKeyboardMarkup(buttons_menu(buttons, n_cols=1))
-        return markup
-
-
-def buttons_menu(buttons, n_cols, header_buttons=None, footer_buttons=None):
-    menu = [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]
-    if header_buttons:
-        menu.insert(0, header_buttons)
-    if footer_buttons:
-        menu.append(footer_buttons)
-    return menu
-
-
-def item_keyboard(person_id, item_id):
-    conn = db.get_db()
-    cur = conn.cursor()
-
-    cur.execute("""SELECT COUNT(*)
-                    FROM polls_clientcarts
-                    where client_id = ? and product_id = ?;""", (person_id, item_id))
-    item_quantity = cur.next()
-    # print(item_quantity) выполняется столько раз, сколько элементов категории
-
-    markup = types.InlineKeyboardMarkup()
-
-    minus_one = types.InlineKeyboardButton(text='-1', callback_data=f'-1 {item_id}')
-    orders = types.InlineKeyboardButton(text=f'{item_quantity[0]} pcs', callback_data=f'quantity {item_id}')
-    plus_one = types.InlineKeyboardButton(text='+1', callback_data=f'+1 {item_id}')
-    clear = types.InlineKeyboardButton(text='Clear', callback_data=f'clear {item_id}')
-    cart = types.InlineKeyboardButton(text='Cart', callback_data=f'cart {item_id}')
-    back = types.InlineKeyboardButton(text='Back', callback_data=f'back {item_id}')
-
-    markup.add(minus_one, orders, plus_one).add(clear, cart).add(back)
-    return markup
-
-
 @bot.callback_query_handler(func=lambda call: True)  # дублирует принт почему-то
 def buttons_call(call):
     action = call.data.split()[0]
@@ -203,28 +89,36 @@ def buttons_call(call):
     # print(call)
     conn = db.get_db()
     cur = conn.cursor()
-    # print(call)
 
     if action == "+1":
         cur.execute("""INSERT INTO polls_clientcarts (client_id, product_id)
                         VALUES (?, ?);""", (user, item_id,))
         conn.commit()
         bot.edit_message_reply_markup(inline_message_id=call.inline_message_id,
-                                      reply_markup=item_keyboard(user, item_id))
+                                      reply_markup=functions.item_keyboard(user, item_id))
 
     elif action == "clear":
         cur.execute("""DELETE FROM polls_clientcarts
                         WHERE client_id = ? AND product_id = ?;""", (user, item_id,))
         conn.commit()
         bot.edit_message_reply_markup(inline_message_id=call.inline_message_id,
-                                      reply_markup=item_keyboard(user, item_id))
+                                      reply_markup=functions.item_keyboard(user, item_id))
 
-    # elif action == "-1":
-    #     cur.execute("""DELETE FROM polls_clientcarts
-    #                     WHERE client_id = ? AND product_id = ?
-    #                     LIMIT 1;""", (user, item_id,))
-    #     bot.edit_message_reply_markup(inline_message_id=call.inline_message_id,
-    #                                   reply_markup=item_keyboard(user, item_id))
+    elif action == "-1":
+        cur.execute("""DELETE FROM polls_clientcarts
+                        WHERE client_id = ? AND product_id = ?
+                        LIMIT 1;""", (user, item_id,))
+        conn.commit()
+        bot.edit_message_reply_markup(inline_message_id=call.inline_message_id,
+                                      reply_markup=functions.item_keyboard(user, item_id))
+
+    elif action == "cart":
+        cur.execute("""SELECT * FROM polls_clientcarts where client_id = ?;""", (user, ))
+
+    elif action == "back":
+        bot.edit_message_text(text="Привет! Я помогу подобрать товар!",
+                              inline_message_id=call.inline_message_id,
+                              reply_markup=functions.keyboard('start'))
 
 
 @bot.inline_handler(func=lambda query: len(query.query) > 0)
@@ -246,7 +140,7 @@ def inline_query(query):
         but = types.InlineQueryResultArticle(
             id=f"{inline_id}", title=inline_info[1], description=f"₴ {inline_info[2]}",
             input_message_content=types.InputTextMessageContent(message_text=inline_info[1]),
-            reply_markup=item_keyboard(query.from_user.id, inline_info[0])
+            reply_markup=functions.item_keyboard(query.from_user.id, inline_info[0])
         )
         inline_items.append(but)
         inline_id += 1
