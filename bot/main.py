@@ -19,6 +19,7 @@ def start(message):
     if check is None:
         cur.execute("INSERT INTO polls_clients (client_id) VALUES (?);", (user_id,))
         conn.commit()
+
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         phone_button = types.KeyboardButton("Phone number", request_contact=True, )
         markup.add(phone_button)
@@ -44,7 +45,38 @@ def check_phone(message):
     msg = bot.send_message(message.chat.id,
                            "Enter your dental name",
                            reply_markup=telebot.types.ReplyKeyboardRemove())
-    bot.register_next_step_handler(msg, functions.name_handler)
+    bot.register_next_step_handler(msg, name_handler)
+
+
+def name_handler(message):
+    conn = db.get_db()
+    cur = conn.cursor()
+
+    cur.execute("""UPDATE polls_clients
+                    SET
+                        client_name = ?
+                    WHERE
+                        client_id = ?;""", (message.text, message.from_user.id))
+    conn.commit()
+
+    msg = bot.send_message(message.chat.id,
+                           "Enter your address",
+                           reply_markup=telebot.types.ReplyKeyboardRemove(selective=False))
+    bot.register_next_step_handler(msg, address_handler)
+
+
+# Почему она неотделима?!
+def address_handler(message):
+    conn = db.get_db()
+    cur = conn.cursor()
+
+    cur.execute("""UPDATE polls_clients
+                    SET
+                        client_address = ?
+                    WHERE
+                        client_id = ?;""", (message.text, message.from_user.id))
+    conn.commit()
+    functions.welcome_word(message)
 
 
 @bot.message_handler(regexp="Товари")
@@ -54,7 +86,12 @@ def category(message):
 
 @bot.message_handler(regexp="Cart")
 def buttons_handler(message):
-    functions.cart_function(message)
+
+    message_text, priority_text = functions.cart_function(message)
+
+    bot.send_message(chat_id=message.from_user.id,
+                     text=message_text,
+                     reply_markup=functions.cart_markup(priority_text))
 
 
 @bot.message_handler(regexp="Замовлення")
@@ -72,7 +109,6 @@ def buttons_call(call):
     action = call.data.split()[0]
     item_id = call.data.split()[1]
     user = call.from_user.id
-    # print(call)
 
     if action == "back":
         bot.edit_message_text(text="Привет! Я помогу подобрать товар!",
@@ -105,13 +141,34 @@ def buttons_call(call):
                                       reply_markup=functions.item_keyboard(user, item_id))
 
     elif action == "cart":
-        functions.cart_function(call)
+        message_text, priority_text = functions.cart_function(call)
+
+        bot.send_message(chat_id=call.from_user.id,
+                         text=message_text,
+                         reply_markup=functions.cart_markup(priority_text))
+
+    elif action == "priority":
+        cur.execute("""select priority from polls_cart_meta where client_id = ?;""", (user, ))
+        priority_status = cur.next()[0]
+
+        if priority_status:
+            cur.execute("""update polls_cart_meta set priority = ? where client_id = ?;""", (0, user))
+            conn.commit()
+
+        else:
+            cur.execute("""update polls_cart_meta set priority = ? where client_id = ?;""", (1, user))
+            conn.commit()
+
+        message_text, priority_text = functions.cart_function(call)
+        bot.edit_message_text(text=message_text,
+                              message_id=call.message.message_id,
+                              chat_id=call.message.chat.id,
+                              reply_markup=functions.cart_markup(priority_text))
 
 
 @bot.inline_handler(func=lambda query: len(query.query) > 0)
 def inline_query(query):
     category = query.query
-    print(query)
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -133,7 +190,6 @@ def inline_query(query):
         inline_id += 1
 
     bot.answer_inline_query(query.id, inline_items)
-
 
 
 # @bot.callback_query_handler(func=lambda call: True)

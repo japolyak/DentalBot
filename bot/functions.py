@@ -53,7 +53,6 @@ def buttons_menu(buttons, n_cols, header_buttons=None, footer_buttons=None):
 def item_keyboard(person_id, item_id):
     conn = db.get_db()
     cur = conn.cursor()
-    print(person_id, item_id)
 
     cur.execute("""select
                     polls_products.price as price,
@@ -71,6 +70,7 @@ def item_keyboard(person_id, item_id):
     # print(item_quantity) выполняется столько раз, сколько элементов категории
     if not item_quantity:
         item_quantity = (0, 0)
+
     price = item_quantity[0]
     quantity = item_quantity[1]
 
@@ -87,37 +87,6 @@ def item_keyboard(person_id, item_id):
     return markup
 
 
-def name_handler(message):
-    conn = db.get_db()
-    cur = conn.cursor()
-
-    cur.execute("""UPDATE polls_clients
-                    SET
-                        client_name = ?
-                    WHERE
-                        client_id = ?;""", (message.text, message.from_user.id))
-    conn.commit()
-
-    msg = bot.send_message(message.chat.id,
-                           "Enter your address",
-                           reply_markup=telebot.types.ReplyKeyboardRemove(selective=False))
-    bot.register_next_step_handler(msg, address_handler)
-
-
-def address_handler(message):
-    conn = db.get_db()
-    cur = conn.cursor()
-
-    cur.execute("""UPDATE polls_clients
-                    SET
-                        client_address = ?
-                    WHERE
-                        client_id = ?;""", (message.text, message.from_user.id))
-    conn.commit()
-
-    welcome_word(message)
-
-
 def cart_function(message):
     conn = db.get_db()
     cur = conn.cursor()
@@ -127,6 +96,17 @@ def cart_function(message):
 
     if not check:
         return bot.send_message(message.from_user.id, "You bin is empty")
+
+    while True:
+        cur.execute("""select priority from polls_cart_meta where client_id = ?;""", (message.from_user.id, ))
+        priority = cur.next()
+
+        if not priority:
+            print("stop")
+            cur.execute("""insert into polls_cart_meta (client_id) values (?);""", (message.from_user.id, ))
+            conn.commit()
+            continue
+        break
 
     cur.execute("""select
                             polls_clientcarts.client_id as client,
@@ -148,26 +128,31 @@ def cart_function(message):
 
     product_list = ""
     total_price = 0
-
     while True:
         row = cur.next()
-        print(row)
         if not row:
             break
-        product_list += f"{row[1]}\n{row[4]} pcs x {row[2]}₴ = {row[4] * row[2]}₴\n"
+        product_list += f"{row[1]}\n{row[4]} pcs x {row[2]} ₴ = {row[4] * row[2]} ₴\n\n"
         total_price += row[4] * row[2]
 
-    bot.send_message(chat_id=message.from_user.id,
-                     text=f"""Cart\n\n----\n{product_list}\n----\nTogether: {total_price}₴""",
-                     reply_markup=cart_markup())
+    if priority[0]:
+        priority = 1.3
+        priority_text = "Disable priority"
+    else:
+        priority = 1
+        priority_text = "Enable priority"
+
+    text = f"""Cart\n\n----\n{product_list}----\nTogether: {total_price * priority} ₴"""
+
+    return text, priority_text
 
 
-def cart_markup():
+def cart_markup(text):
     markup = types.InlineKeyboardMarkup()
 
     edit = types.InlineKeyboardButton(text='Edit', callback_data=f'edit cart')
-    clean = types.InlineKeyboardButton(text='Clean', callback_data='clean cart')
-    priority = types.InlineKeyboardButton(text='Priority (+30%)', callback_data='priority cart')
+    clean = types.InlineKeyboardButton(text='Clean', callback_data='cleaning cart')
+    priority = types.InlineKeyboardButton(text=text, callback_data='priority cart')
     confirm = types.InlineKeyboardButton(text='Confirm order', callback_data=f'confirmation cart')
 
     markup.add(edit, clean).add(priority).add(confirm)
