@@ -34,7 +34,6 @@ def keyboard(call):
         buttons = []
 
         for good in list_of_goods:
-            # buttons.append(types.InlineKeyboardButton(text=good, callback_data=good))
             buttons.append(types.InlineKeyboardButton(text=good,
                                                       switch_inline_query_current_chat=good))
 
@@ -68,9 +67,6 @@ def item_keyboard(person_id, item_id):
 
                     GROUP BY price;""", (item_id, person_id))
 
-    # cur.execute("""SELECT COUNT(*)
-    #                 FROM polls_clientcarts
-    #                 where client_id = ? and product_id = ?;""", (person_id, item_id))
     item_quantity = cur.next()
     # print(item_quantity) выполняется столько раз, сколько элементов категории
     if not item_quantity:
@@ -83,8 +79,8 @@ def item_keyboard(person_id, item_id):
     minus_one = types.InlineKeyboardButton(text='-1', callback_data=f'-1 {item_id}')
     orders = types.InlineKeyboardButton(text=f'{quantity} pcs', callback_data=f'quantity {item_id}')
     plus_one = types.InlineKeyboardButton(text='+1', callback_data=f'+1 {item_id}')
-    clear = types.InlineKeyboardButton(text='Clear', callback_data=f'clear {item_id}')
-    cart = types.InlineKeyboardButton(text=f'₴ {price * quantity}', callback_data=f'cart {item_id}')
+    clear = types.InlineKeyboardButton(text='Clear', callback_data=f'clean {item_id}')
+    cart = types.InlineKeyboardButton(text=f'{price * quantity}₴', callback_data=f'cart {item_id}')
     back = types.InlineKeyboardButton(text='Back', callback_data=f'back back')
 
     markup.add(minus_one, orders, plus_one).add(clear, cart).add(back)
@@ -120,3 +116,59 @@ def address_handler(message):
     conn.commit()
 
     welcome_word(message)
+
+
+def cart_function(message):
+    conn = db.get_db()
+    cur = conn.cursor()
+
+    cur.execute("""select * from polls_clientcarts where client_id = ?;""", (message.from_user.id, ))
+    check = cur.next()
+
+    if not check:
+        return bot.send_message(message.from_user.id, "You bin is empty")
+
+    cur.execute("""select
+                            polls_clientcarts.client_id as client,
+                            polls_products.product_name as name,
+                            polls_products.price as price,
+                            polls_clientcarts.product_id as product_id,
+                            COUNT(*) AS "count"
+                        from polls_clientcarts
+                        inner join polls_products
+
+                        on polls_clientcarts.product_id = polls_products.id
+                        where polls_clientcarts.client_id = ?
+                        GROUP BY
+                            client,
+                            product_id,
+                            name,
+                            price
+                        order by product_id;""", (message.from_user.id, ))
+
+    product_list = ""
+    total_price = 0
+
+    while True:
+        row = cur.next()
+        print(row)
+        if not row:
+            break
+        product_list += f"{row[1]}\n{row[4]} pcs x {row[2]}₴ = {row[4] * row[2]}₴\n"
+        total_price += row[4] * row[2]
+
+    bot.send_message(chat_id=message.from_user.id,
+                     text=f"""Cart\n\n----\n{product_list}\n----\nTogether: {total_price}₴""",
+                     reply_markup=cart_markup())
+
+
+def cart_markup():
+    markup = types.InlineKeyboardMarkup()
+
+    edit = types.InlineKeyboardButton(text='Edit', callback_data=f'edit cart')
+    clean = types.InlineKeyboardButton(text='Clean', callback_data='clean cart')
+    priority = types.InlineKeyboardButton(text='Priority (+30%)', callback_data='priority cart')
+    confirm = types.InlineKeyboardButton(text='Confirm order', callback_data=f'confirmation cart')
+
+    markup.add(edit, clean).add(priority).add(confirm)
+    return markup

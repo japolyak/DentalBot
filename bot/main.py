@@ -54,30 +54,16 @@ def category(message):
 
 @bot.message_handler(regexp="Cart")
 def buttons_handler(message):
-    conn = db.get_db()
-    cur = conn.cursor()
-
-    cur.execute("""SELECT *
-                    FROM polls_clientcarts
-                    WHERE client_id = ?;""", (message.from_user.id,))
-
-    while True:
-        row = cur.next()
-        if not row:
-            bot.send_message(message.chat.id, "You bin is empty")
-            break
-        print(row)
-
-    bot.send_message(message.chat.id, "Here will be inforamtion about your order")
+    functions.cart_function(message)
 
 
 @bot.message_handler(regexp="Замовлення")
-def buttons_handler(message):
+def order_handler(message):
     bot.send_message(message.chat.id, "Here will be inforamtion about your orders.")
 
 
 @bot.message_handler(regexp="Інфо")
-def buttons_handler(message):
+def info_handler(message):
     bot.send_message(message.chat.id, "Bla bla bla.")
 
 
@@ -87,6 +73,11 @@ def buttons_call(call):
     item_id = call.data.split()[1]
     user = call.from_user.id
     # print(call)
+
+    if action == "back":
+        bot.edit_message_text(text="Привет! Я помогу подобрать товар!",
+                              inline_message_id=call.inline_message_id,
+                              reply_markup=functions.keyboard('start'))
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -97,7 +88,7 @@ def buttons_call(call):
         bot.edit_message_reply_markup(inline_message_id=call.inline_message_id,
                                       reply_markup=functions.item_keyboard(user, item_id))
 
-    elif action == "clear":
+    elif action == "clean":
         cur.execute("""DELETE FROM polls_clientcarts
                         WHERE client_id = ? AND product_id = ?;""", (user, item_id,))
         conn.commit()
@@ -108,17 +99,13 @@ def buttons_call(call):
         cur.execute("""DELETE FROM polls_clientcarts
                         WHERE client_id = ? AND product_id = ?
                         LIMIT 1;""", (user, item_id,))
+
         conn.commit()
         bot.edit_message_reply_markup(inline_message_id=call.inline_message_id,
                                       reply_markup=functions.item_keyboard(user, item_id))
 
     elif action == "cart":
-        cur.execute("""SELECT * FROM polls_clientcarts where client_id = ?;""", (user, ))
-
-    elif action == "back":
-        bot.edit_message_text(text="Привет! Я помогу подобрать товар!",
-                              inline_message_id=call.inline_message_id,
-                              reply_markup=functions.keyboard('start'))
+        functions.cart_function(call)
 
 
 @bot.inline_handler(func=lambda query: len(query.query) > 0)
@@ -146,6 +133,7 @@ def inline_query(query):
         inline_id += 1
 
     bot.answer_inline_query(query.id, inline_items)
+
 
 
 # @bot.callback_query_handler(func=lambda call: True)
