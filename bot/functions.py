@@ -4,10 +4,10 @@ from main import *
 def welcome_word(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
 
-    position_button = types.KeyboardButton("Товари")
+    position_button = types.KeyboardButton("Goods")
     basket_button = types.KeyboardButton("Cart")
-    profile_button = types.KeyboardButton("Профіль")
-    info_button = types.KeyboardButton("Інфо")
+    profile_button = types.KeyboardButton("Profile")
+    info_button = types.KeyboardButton("Information")
 
     markup.add(position_button,
                basket_button,
@@ -56,15 +56,12 @@ def item_keyboard(person_id, item_id):
 
     cur.execute("""select
                     polls_products.price as price,
-                    COUNT(*) AS "count"
-
+                    COUNT(*) as "count"
                     from polls_clientcarts
-
                     inner join polls_products
                     on polls_clientcarts.product_id = polls_products.id
                     where polls_clientcarts.product_id = ? and polls_clientcarts.client_id = ?
-
-                    GROUP BY price;""", (item_id, person_id))
+                    group by price;""", (item_id, person_id))
 
     item_quantity = cur.next()
     # print(item_quantity) выполняется столько раз, сколько элементов категории
@@ -77,11 +74,11 @@ def item_keyboard(person_id, item_id):
     markup = types.InlineKeyboardMarkup()
 
     minus_one = types.InlineKeyboardButton(text='-1', callback_data=f'-1 {item_id}')
-    orders = types.InlineKeyboardButton(text=f'{quantity} pcs', callback_data=f'quantity {item_id}')
+    orders = types.InlineKeyboardButton(text=f'{quantity} pcs', callback_data=f'quantity {item_id}')  # add possibility
     plus_one = types.InlineKeyboardButton(text='+1', callback_data=f'+1 {item_id}')
     clear = types.InlineKeyboardButton(text='Clear', callback_data=f'clean {item_id}')
-    cart = types.InlineKeyboardButton(text=f'{price * quantity}₴', callback_data=f'cart {item_id}')
-    back = types.InlineKeyboardButton(text='Back', callback_data=f'back back')
+    cart = types.InlineKeyboardButton(text=f'{price * quantity}₴', callback_data=f'cart')
+    back = types.InlineKeyboardButton(text='Back', callback_data=f'back')
 
     markup.add(minus_one, orders, plus_one).add(clear, cart).add(back)
     return markup
@@ -91,19 +88,12 @@ def cart_function(message):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""select * from polls_clientcarts where client_id = ?;""", (message.from_user.id, ))
-    check = cur.next()
-
-    if not check:
-        return bot.send_message(message.from_user.id, "You bin is empty")
-
     while True:
-        cur.execute("""select priority from polls_cart_meta where client_id = ?;""", (message.from_user.id, ))
+        cur.execute("""select priority from polls_complete where client_id = ?;""", (message.from_user.id, ))
         priority = cur.next()
 
         if not priority:
-            print("stop")
-            cur.execute("""insert into polls_cart_meta (client_id) values (?);""", (message.from_user.id, ))
+            cur.execute("""insert into polls_complete (client_id) values (?);""", (message.from_user.id, ))
             conn.commit()
             continue
         break
@@ -119,7 +109,7 @@ def cart_function(message):
 
                         on polls_clientcarts.product_id = polls_products.id
                         where polls_clientcarts.client_id = ?
-                        GROUP BY
+                        group by
                             client,
                             product_id,
                             name,
@@ -128,6 +118,7 @@ def cart_function(message):
 
     product_list = ""
     total_price = 0
+
     while True:
         row = cur.next()
         if not row:
@@ -150,10 +141,66 @@ def cart_function(message):
 def cart_markup(text):
     markup = types.InlineKeyboardMarkup()
 
-    edit = types.InlineKeyboardButton(text='Edit', callback_data=f'edit cart')
-    clean = types.InlineKeyboardButton(text='Clean', callback_data='cleaning cart')
-    priority = types.InlineKeyboardButton(text=text, callback_data='priority cart')
-    confirm = types.InlineKeyboardButton(text='Confirm order', callback_data=f'confirmation cart')
+    edit = types.InlineKeyboardButton(text='Edit', callback_data='edit')  # add possibility
+    clean = types.InlineKeyboardButton(text='Clean', callback_data='delete')
+    priority = types.InlineKeyboardButton(text=text, callback_data='priority')
+    confirm = types.InlineKeyboardButton(text='Confirm order', callback_data='confirmation')
 
     markup.add(edit, clean).add(priority).add(confirm)
     return markup
+
+
+def yes_no():
+    markup = types.InlineKeyboardMarkup()
+
+    yes = types.InlineKeyboardButton(text="Yes", callback_data="yes")
+    no = types.InlineKeyboardButton(text="No", callback_data="no")
+
+    markup.add(yes, no)
+    return markup
+
+
+def confirmation_text():
+    return
+
+
+def confirmation_markup():
+    markup = types.InlineKeyboardMarkup()
+
+    confirm = types.InlineKeyboardButton(text="Confirm", callback_data="accept")
+    correct = types.InlineKeyboardButton(text="Correct", callback_data="correct")  # add possibility
+    cancel = types.InlineKeyboardButton(text="Cancel", callback_data="cancel")  # add possibility
+
+    markup.add(confirm).add(correct).add(cancel)
+    return markup
+
+
+def confirmation(call):
+    conn = db.get_db()
+    cur = conn.cursor()
+
+    cur.execute("""insert into polls_orders (client_id, patient_name, term, term_time, descrition, priority)
+                    select client_id, patient_name, term, term_time, description, priority
+                    from polls_complete
+                    where client_id = ?;""", (call.from_user.id, ))
+    print(cur.lastrowid)  # add possibility
+    conn.commit()
+
+    cur.execute("""delete from polls_complete where client_id = ?;""", (call.from_user.id, ))
+    cur.execute("""delete from polls_clientcarts where client_id = ?;""", (call.from_user.id,))
+
+    conn.commit()
+
+
+def description_handler(call):
+    conn = db.get_db()
+    cur = conn.cursor()
+
+    cur.execute("""update polls_complete set description = ? where client_id = ?;""", (call.text, call.from_user.id))
+    conn.commit()
+
+    confirmation_text = functions.confirmation_text()
+
+    bot.send_message(chat_id=call.from_user.id,
+                     text=confirmation_text,
+                     reply_markup=functions.confirmation_markup())
