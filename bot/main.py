@@ -2,6 +2,7 @@ import mariadb
 import telebot
 import db
 from telebot import types
+from telebot.apihelper import ApiTelegramException
 import functions
 from config import token
 
@@ -142,7 +143,7 @@ def minus_call(call):
         conn.commit()
         bot.edit_message_reply_markup(inline_message_id=call.inline_message_id,
                                       reply_markup=functions.item_keyboard(call.from_user.id, item_id))
-    except telebot.apihelper.ApiTelegramException:
+    except ApiTelegramException:
         pass
 
 
@@ -160,8 +161,70 @@ def clean_call(call):
         conn.commit()
         bot.edit_message_reply_markup(inline_message_id=call.inline_message_id,
                                       reply_markup=functions.item_keyboard(call.from_user.id, item_id))
-    except telebot.apihelper.ApiTelegramException:
+    except ApiTelegramException:
         pass
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("quantity"))
+def quantity_handler(call):
+    item_id = call.data.split()[1]
+
+    msg = bot.send_message(chat_id=call.from_user.id,
+                           text="Enter quantity")
+    edit_msg = msg.id
+    bot.register_next_step_handler(message=msg,
+                                   callback=entered_quantity,
+                                   edit_msg=edit_msg,
+                                   item_id=item_id,
+                                   edit_markup=call.inline_message_id)
+
+
+def entered_quantity(call, edit_msg, item_id, edit_markup):
+
+    try:
+        quantity = int(call.text)
+    except ValueError:
+        bot.delete_message(chat_id=call.from_user.id,
+                           message_id=call.message_id)
+
+        try:
+            bot.edit_message_text(chat_id=call.from_user.id,
+                                  message_id=edit_msg,
+                                  text="You should enter numbers")
+
+        except ApiTelegramException:
+            pass
+
+        bot.register_next_step_handler_by_chat_id(chat_id=call.from_user.id,
+                                                  callback=entered_quantity,
+                                                  edit_msg=edit_msg,
+                                                  item_id=item_id,
+                                                  edit_markup=edit_markup)
+        return
+
+    conn = db.get_db()
+    cur = conn.cursor()
+
+    cur.execute("""delete from polls_clientcarts where client_id = ? and product_id = ?;""", (call.from_user.id, item_id))
+
+    while quantity != 0:
+        quantity -= 1
+        cur.execute("""insert into polls_clientcarts (client_id, product_id) values (?, ?);""", (call.from_user.id, item_id))
+
+    conn.commit()
+
+    bot.edit_message_text(chat_id=call.from_user.id,
+                          message_id=edit_msg,
+                          text="Nice")
+
+    bot.delete_message(chat_id=call.from_user.id,
+                       message_id=call.message_id)
+
+    bot.delete_message(chat_id=call.from_user.id,
+                       message_id=edit_msg)
+
+    bot.edit_message_reply_markup(inline_message_id=edit_markup,
+                                  reply_markup=functions.item_keyboard(call.from_user.id, item_id))
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("+1"))
@@ -314,8 +377,17 @@ def yes_call(call):
                                    callback=functions.description_handler)
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith(("no", "accept")))
-def confirmation_call(call):
+@bot.callback_query_handler(func=lambda call: call.data.startswith("no"))
+def show_order_call(call):
+    text = functions.confirmation_text(call)
+
+    bot.send_message(chat_id=call.from_user.id,
+                     text=text,
+                     reply_markup=functions.confirmation_markup())
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("accept"))
+def show_order_call(call):
     functions.confirmation(call)
 
 

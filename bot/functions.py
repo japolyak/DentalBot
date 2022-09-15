@@ -106,7 +106,6 @@ def cart_function(message):
                             COUNT(*) AS "count"
                         from polls_clientcarts
                         inner join polls_products
-
                         on polls_clientcarts.product_id = polls_products.id
                         where polls_clientcarts.client_id = ?
                         group by
@@ -160,8 +159,16 @@ def yes_no():
     return markup
 
 
-def confirmation_text():
-    return
+def confirmation_text(call):
+    conn = db.get_db()
+    cur = conn.cursor()
+
+    cur.execute("""select patient_name, term, term_time, description from polls_complete where client_id = ?;""", (call.from_user.id, ))
+    details = cur.next()
+
+    text = f"Patient full name: {details[0]}\nTerm: {details[1]}\nTime: {details[2][0:5]}\nDescription: {details[3]}"
+
+    return text
 
 
 def confirmation_markup():
@@ -183,13 +190,63 @@ def confirmation(call):
                     select client_id, patient_name, term, term_time, description, priority
                     from polls_complete
                     where client_id = ?;""", (call.from_user.id, ))
-    print(cur.lastrowid)  # add possibility
-    conn.commit()
+    row_id = cur.lastrowid
+
+    cur.execute("""insert into polls_order_goods (order_id, product_id, quantity)
+                    select
+                        ? as client,
+                        product_id as product_id,
+                        COUNT(*) AS "count"
+                    from polls_clientcarts
+                    
+                    where polls_clientcarts.client_id = ?
+                    group by
+                        client,
+                        product_id
+                    order by count;""", (row_id, call.from_user.id,))
 
     cur.execute("""delete from polls_complete where client_id = ?;""", (call.from_user.id, ))
     cur.execute("""delete from polls_clientcarts where client_id = ?;""", (call.from_user.id,))
 
     conn.commit()
+
+    cur.execute("""select * from polls_orders where order_id = ?;""", (row_id,))
+    common = cur.next()
+
+    priority = 1
+    priority_text = "Normal order"
+
+    if common[6]:
+        priority = 1.3
+        priority_text = "Prioritized order (+30%)"
+
+    cur.execute("""select
+                        polls_order_goods.quantity as quantity,
+                        polls_products.product_name as name,
+                        polls_products.price as price
+                    from polls_order_goods
+                    inner join polls_products
+                    on polls_order_goods.product_id = polls_products.id
+                    where polls_order_goods.order_id = ?
+                    group by
+                        name,
+                        price,
+                        quantity;""", (row_id, ))
+
+    price = 0
+    product_list = ""
+
+    while True:
+        row = cur.next()
+        if not row:
+            break
+        price += row[0] * row[2] * priority
+        product_list += f"{row[0]} pcs x {row[1]} - {row[0] * row[2]} ₴\n"
+
+    text = f"{priority_text} №{row_id}\nDeadline - {common[4]} on {common[3]}\nOrdered goods:\n{product_list}\nTotal summ: {price}"
+
+    bot.send_message(chat_id=call.from_user.id,
+                     text=text)
 
 
 def description_handler(call):
@@ -199,8 +256,8 @@ def description_handler(call):
     cur.execute("""update polls_complete set description = ? where client_id = ?;""", (call.text, call.from_user.id))
     conn.commit()
 
-    confirmation_text = functions.confirmation_text()
+    text = confirmation_text(call)
 
     bot.send_message(chat_id=call.from_user.id,
-                     text=confirmation_text,
-                     reply_markup=functions.confirmation_markup())
+                     text=text,
+                     reply_markup=confirmation_markup())
