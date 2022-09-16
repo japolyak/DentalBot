@@ -166,7 +166,7 @@ def confirmation_text(call):
     cur.execute("""select patient_name, term, term_time, description from polls_complete where client_id = ?;""", (call.from_user.id, ))
     details = cur.next()
 
-    text = f"Patient full name: {details[0]}\nTerm: {details[1]}\nTime: {details[2][0:5]}\nDescription: {details[3]}"
+    text = f"Patient full name: {details[0]}\nTerm: {details[1]}\nTime: {details[2]}\nDescription: {details[3]}"
 
     return text
 

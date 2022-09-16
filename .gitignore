@@ -1,6 +1,7 @@
 venv
 .idea
 .env
+no.py
 __pycache__
 
 # General

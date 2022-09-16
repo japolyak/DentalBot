@@ -1,8 +1,8 @@
-import mariadb
 import telebot
-import db
 from telebot import types
 from telebot.apihelper import ApiTelegramException
+import mariadb
+import db
 import functions
 from config import token
 
@@ -172,17 +172,18 @@ def quantity_handler(call):
     msg = bot.send_message(chat_id=call.from_user.id,
                            text="Enter quantity")
     edit_msg = msg.id
-    bot.register_next_step_handler(message=msg,
-                                   callback=entered_quantity,
-                                   edit_msg=edit_msg,
-                                   item_id=item_id,
-                                   edit_markup=call.inline_message_id)
+    bot.register_next_step_handler_by_chat_id(chat_id=call.from_user.id,
+                                              callback=entered_quantity,
+                                              edit_msg=edit_msg,
+                                              item_id=item_id,
+                                              edit_markup=call.inline_message_id)
 
 
 def entered_quantity(call, edit_msg, item_id, edit_markup):
 
     try:
         quantity = int(call.text)
+
     except ValueError:
         bot.delete_message(chat_id=call.from_user.id,
                            message_id=call.message_id)
@@ -319,11 +320,15 @@ def accept_call(call):
 
     msg = bot.send_message(chat_id=call.from_user.id,
                            text="Enter full name of the patient")
-    bot.register_next_step_handler(message=msg,
-                                   callback=patient_handler)
+
+    del_msg = msg.id
+
+    bot.register_next_step_handler_by_chat_id(chat_id=call.from_user.id,
+                                              callback=patient_handler,
+                                              del_msg=del_msg)
 
 
-def patient_handler(call):
+def patient_handler(call, del_msg):
 
     conn = db.get_db()
     cur = conn.cursor()
@@ -331,38 +336,88 @@ def patient_handler(call):
     cur.execute("""update polls_complete set patient_name = ? where client_id = ?;""", (call.text, call.from_user.id))
     conn.commit()
 
+    bot.delete_message(chat_id=call.from_user.id,
+                       message_id=del_msg)
+
     msg = bot.send_message(chat_id=call.from_user.id,
-                           text="Enter the term")
+                           text="Enter the date")
+
+    edit_msg = msg.id
+
     bot.register_next_step_handler(message=msg,
-                                   callback=deadline_handler)
+                                   callback=deadline_handler,
+                                   edit_msg=edit_msg)
 
 
-def deadline_handler(call):
+def deadline_handler(call, edit_msg):
 
     conn = db.get_db()
     cur = conn.cursor()
 
     try:
         cur.execute("""update polls_complete set term = ? where client_id = ?;""", (call.text, call.from_user.id))
+
     except mariadb.OperationalError:
-        bot.send_message(chat_id=call.from_user.id,
-                         text="Bad term")  # fix~!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        pass
+        bot.delete_message(chat_id=call.from_user.id,
+                           message_id=call.message_id)
+        try:
+            bot.edit_message_text(chat_id=call.from_user.id,
+                                  message_id=edit_msg,
+                                  text="Enter date like this - 2012-03-04")
+
+        except ApiTelegramException:
+            pass
+        conn.close()
+
+        bot.register_next_step_handler_by_chat_id(chat_id=call.from_user.id,
+                                                  callback=deadline_handler,
+                                                  edit_msg=edit_msg)
+        return
+
     conn.commit()
+
+    bot.delete_message(chat_id=call.from_user.id,
+                       message_id=edit_msg)
 
     msg = bot.send_message(chat_id=call.from_user.id,
                            text="Enter the time")
+
+    edit_msg = msg.id
+
     bot.register_next_step_handler(message=msg,
-                                   callback=term_time_handler)
+                                   callback=term_time_handler,
+                                   edit_msg=edit_msg)
 
 
-def term_time_handler(call):
+def term_time_handler(call, edit_msg):
 
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""update polls_complete set term_time = ? where client_id = ?;""", (call.text, call.from_user.id))
+    try:
+        cur.execute("""update polls_complete set term_time = ? where client_id = ?;""", (call.text, call.from_user.id))
+
+    except mariadb.OperationalError:
+        bot.delete_message(chat_id=call.from_user.id,
+                           message_id=call.message_id)
+        try:
+            bot.edit_message_text(chat_id=call.from_user.id,
+                                  message_id=edit_msg,
+                                  text="Enter time like this - 14:00")
+
+        except ApiTelegramException:
+            pass
+        conn.close()
+
+        bot.register_next_step_handler_by_chat_id(chat_id=call.from_user.id,
+                                                  callback=term_time_handler,
+                                                  edit_msg=edit_msg)
+        return
+
     conn.commit()
+
+    bot.delete_message(chat_id=call.from_user.id,
+                       message_id=edit_msg)
 
     bot.send_message(chat_id=call.from_user.id,
                      text="Leave description?",
