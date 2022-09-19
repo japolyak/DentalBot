@@ -128,6 +128,7 @@ def info_handler(message):
                      text="Bla bla bla.")
 
 
+# start of items keyboard
 @bot.callback_query_handler(func=lambda call: call.data.startswith("-1"))
 def minus_call(call):
     item_id = call.data.split()[1]
@@ -140,24 +141,6 @@ def minus_call(call):
                         where client_id = ? and product_id = ?
                         limit 1;""", (call.from_user.id, item_id,))
 
-        conn.commit()
-        bot.edit_message_reply_markup(inline_message_id=call.inline_message_id,
-                                      reply_markup=functions.item_keyboard(call.from_user.id, item_id))
-    except ApiTelegramException:
-        pass
-
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith("clean"))
-def clean_call(call):
-
-    item_id = call.data.split()[1]
-
-    try:
-        conn = db.get_db()
-        cur = conn.cursor()
-
-        cur.execute("""delete from polls_clientcarts
-                        where client_id = ? and product_id = ?;""", (call.from_user.id, item_id,))
         conn.commit()
         bot.edit_message_reply_markup(inline_message_id=call.inline_message_id,
                                       reply_markup=functions.item_keyboard(call.from_user.id, item_id))
@@ -243,11 +226,22 @@ def plus_call(call):
                                   reply_markup=functions.item_keyboard(call.from_user.id, item_id))
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("back"))
-def back_call(call):
-    bot.edit_message_text(text="Привет! Я помогу подобрать товар!",
-                          inline_message_id=call.inline_message_id,
-                          reply_markup=functions.keyboard('start'))
+@bot.callback_query_handler(func=lambda call: call.data.startswith("clean"))
+def clean_call(call):
+
+    item_id = call.data.split()[1]
+
+    try:
+        conn = db.get_db()
+        cur = conn.cursor()
+
+        cur.execute("""delete from polls_clientcarts
+                        where client_id = ? and product_id = ?;""", (call.from_user.id, item_id,))
+        conn.commit()
+        bot.edit_message_reply_markup(inline_message_id=call.inline_message_id,
+                                      reply_markup=functions.item_keyboard(call.from_user.id, item_id))
+    except ApiTelegramException:
+        pass
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("cart"))
@@ -267,6 +261,188 @@ def cart_call(call):
     bot.send_message(chat_id=call.from_user.id,
                      text=message_text,
                      reply_markup=functions.cart_markup(priority_text))
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("back"))
+def back_call(call):
+    bot.edit_message_text(text="Привет! Я помогу подобрать товар!",
+                          inline_message_id=call.inline_message_id,
+                          reply_markup=functions.keyboard('start'))
+# finish of items keyboard
+
+
+# start of carts keyboard
+@bot.callback_query_handler(func=lambda call: call.data.startswith("edit"))
+def edit_items(call):
+    functions.edit_markup(call)
+
+
+# start of editing keyboard
+@bot.callback_query_handler(func=lambda call: call.data.startswith("item"))
+def secelt_item(call):
+    row_id = int(call.data.split()[1])
+    functions.cart_edit_markup(call=call, row_id=row_id)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("minus"))
+def editable_minus(call):
+
+    item_id = call.data.split()[1]
+    row_id = int(call.data.split()[2])
+
+    try:
+        conn = db.get_db()
+        cur = conn.cursor()
+
+        cur.execute("""delete from polls_clientcarts
+                        where client_id = ? and product_id = ?
+                        limit 1;""", (call.from_user.id, item_id,))
+
+        conn.commit()
+
+        try:
+            functions.cart_edit_markup(call=call, row_id=row_id)
+
+        except TypeError:
+            bot.edit_message_text(chat_id=call.from_user.id,
+                                  message_id=call.message.id,
+                                  text="Your cart is empty")
+
+    except ApiTelegramException:
+        pass
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("rewrite"))
+def rewrite_quantity(call):
+    item_id = call.data.split()[1]
+    row_id = int(call.data.split()[2])
+
+    msg = bot.send_message(chat_id=call.from_user.id,
+                           text="Enter quantity")
+    edit_msg = msg.id
+    bot.register_next_step_handler_by_chat_id(chat_id=call.from_user.id,
+                                              callback=next_rewrite_quantity,
+                                              edit_msg=edit_msg,
+                                              item_id=item_id,
+                                              row_id=row_id,
+                                              cart_call=call)
+
+
+def next_rewrite_quantity(call, edit_msg, item_id, row_id, cart_call):
+    try:
+        quantity = int(call.text)
+
+    except ValueError:
+        bot.delete_message(chat_id=call.from_user.id,
+                           message_id=call.message_id)
+
+        try:
+            bot.edit_message_text(chat_id=call.from_user.id,
+                                  message_id=edit_msg,
+                                  text="You should enter numbers")
+
+        except ApiTelegramException:
+            pass
+
+        bot.register_next_step_handler_by_chat_id(chat_id=call.from_user.id,
+                                                  callback=next_rewrite_quantity,
+                                                  edit_msg=edit_msg,
+                                                  item_id=item_id,
+                                                  row_id=row_id,
+                                                  cart_call=cart_call)
+        return
+
+    conn = db.get_db()
+    cur = conn.cursor()
+
+    cur.execute("""delete from polls_clientcarts where client_id = ? and product_id = ?;""",
+                (call.from_user.id, item_id))
+
+    while quantity != 0:
+        quantity -= 1
+        cur.execute("""insert into polls_clientcarts (client_id, product_id) values (?, ?);""",
+                    (call.from_user.id, item_id))
+
+    conn.commit()
+
+    bot.edit_message_text(chat_id=call.from_user.id,
+                          message_id=edit_msg,
+                          text="Nice")
+
+    bot.delete_message(chat_id=call.from_user.id,
+                       message_id=call.message_id)
+
+    bot.delete_message(chat_id=call.from_user.id,
+                       message_id=edit_msg)
+    try:
+        functions.cart_edit_markup(call=cart_call, row_id=row_id)
+
+    except ApiTelegramException:
+        pass
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("plus"))
+def editable_minus(call):
+
+    item_id = call.data.split()[1]
+    row_id = int(call.data.split()[2])
+
+    try:
+        conn = db.get_db()
+        cur = conn.cursor()
+
+        cur.execute("""insert into polls_clientcarts (client_id, product_id)
+                        values (?, ?);""", (call.from_user.id, item_id,))
+
+        conn.commit()
+
+        functions.cart_edit_markup(call=call, row_id=row_id)
+
+    except ApiTelegramException:
+        pass
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("continue"))
+def back_to_goods(call):
+    bot.edit_message_text(chat_id=call.from_user.id,
+                          message_id=call.message.id,
+                          text="You can choose our goods",
+                          reply_markup=functions.keyboard('start'))
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("forward"))
+def edit_items(call):
+
+    row_id = int(call.data.split()[1]) + 1
+    functions.edit_markup(call=call, row_id=row_id)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("reaward"))
+def edit_items(call):
+
+    row_id = int(call.data.split()[1]) - 1
+    functions.edit_markup(call=call, row_id=row_id)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("finish"))
+def close_editing(call):
+    conn = db.get_db()
+    cur = conn.cursor()
+
+    cur.execute("""select * from polls_clientcarts where client_id = ?;""", (call.from_user.id,))
+    check = cur.next()
+
+    if not check:
+        return bot.send_message(chat_id=call.from_user.id,
+                                text="You bin is empty")
+
+    message_text, priority_text = functions.cart_function(call)
+
+    bot.edit_message_text(chat_id=call.from_user.id,
+                          message_id=call.message.id,
+                          text=message_text,
+                          reply_markup=functions.cart_markup(priority_text))
+# finish of editing keyboard
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("priority"))
@@ -317,18 +493,19 @@ def accept_call(call):
 
     if not check:
         cur.execute("""insert into polls_complete (client_id) values (?);""", (call.from_user.id,))
+        conn.commit()
 
     msg = bot.send_message(chat_id=call.from_user.id,
                            text="Enter full name of the patient")
 
-    del_msg = msg.id
+    dell_msg = msg.id
 
     bot.register_next_step_handler_by_chat_id(chat_id=call.from_user.id,
                                               callback=patient_handler,
-                                              del_msg=del_msg)
+                                              dell_msg=dell_msg)
 
 
-def patient_handler(call, del_msg):
+def patient_handler(call, dell_msg):
 
     conn = db.get_db()
     cur = conn.cursor()
@@ -337,16 +514,16 @@ def patient_handler(call, del_msg):
     conn.commit()
 
     bot.delete_message(chat_id=call.from_user.id,
-                       message_id=del_msg)
+                       message_id=dell_msg)
 
     msg = bot.send_message(chat_id=call.from_user.id,
                            text="Enter the date")
 
     edit_msg = msg.id
 
-    bot.register_next_step_handler(message=msg,
-                                   callback=deadline_handler,
-                                   edit_msg=edit_msg)
+    bot.register_next_step_handler_by_chat_id(chat_id=call.from_user.id,
+                                              callback=deadline_handler,
+                                              edit_msg=edit_msg)
 
 
 def deadline_handler(call, edit_msg):
@@ -356,6 +533,7 @@ def deadline_handler(call, edit_msg):
 
     try:
         cur.execute("""update polls_complete set term = ? where client_id = ?;""", (call.text, call.from_user.id))
+        conn.commit()
 
     except mariadb.OperationalError:
         bot.delete_message(chat_id=call.from_user.id,
@@ -363,7 +541,7 @@ def deadline_handler(call, edit_msg):
         try:
             bot.edit_message_text(chat_id=call.from_user.id,
                                   message_id=edit_msg,
-                                  text="Enter date like this - 2012-03-04")
+                                  text="Enter date like this - yyyy-mm-dd")
 
         except ApiTelegramException:
             pass
@@ -396,6 +574,7 @@ def term_time_handler(call, edit_msg):
 
     try:
         cur.execute("""update polls_complete set term_time = ? where client_id = ?;""", (call.text, call.from_user.id))
+        conn.commit()
 
     except mariadb.OperationalError:
         bot.delete_message(chat_id=call.from_user.id,
@@ -403,7 +582,7 @@ def term_time_handler(call, edit_msg):
         try:
             bot.edit_message_text(chat_id=call.from_user.id,
                                   message_id=edit_msg,
-                                  text="Enter time like this - 14:00")
+                                  text="Enter time like this - hh:mm")
 
         except ApiTelegramException:
             pass
@@ -422,12 +601,15 @@ def term_time_handler(call, edit_msg):
     bot.send_message(chat_id=call.from_user.id,
                      text="Leave description?",
                      reply_markup=functions.yes_no())
+# finish of carts keyboard
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("yes"))
 def yes_call(call):
-    msg = bot.send_message(chat_id=call.from_user.id,
-                           text="Enter description")
+    msg = bot.edit_message_text(chat_id=call.from_user.id,
+                                message_id=call.message.id,
+                                text="Enter description")
+
     bot.register_next_step_handler(message=msg,
                                    callback=functions.description_handler)
 
@@ -436,14 +618,174 @@ def yes_call(call):
 def show_order_call(call):
     text = functions.confirmation_text(call)
 
-    bot.send_message(chat_id=call.from_user.id,
-                     text=text,
-                     reply_markup=functions.confirmation_markup())
+    bot.edit_message_text(chat_id=call.from_user.id,
+                          message_id=call.message.id,
+                          text=text,
+                          reply_markup=functions.confirmation_markup())
 
 
+# start of the confirmation keyboard
 @bot.callback_query_handler(func=lambda call: call.data.startswith("accept"))
 def show_order_call(call):
     functions.confirmation(call)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("correct"))
+def edit_tech_info(call):
+
+    bot.edit_message_text(text="Choose what do you whant to change",
+                          chat_id=call.from_user.id,
+                          message_id=call.message.id,
+                          reply_markup=functions.edit_details_markup())
+
+
+# start of the correct keyboard
+@bot.callback_query_handler(func=lambda call: call.data.startswith("fullname"))
+def edit_fullname(call):
+
+    back_msg = bot.edit_message_text(chat_id=call.from_user.id,
+                                     message_id=call.message.id,
+                                     text="Enter new fullname of the patient")
+
+    bot.register_next_step_handler_by_chat_id(chat_id=call.from_user.id,
+                                              callback=functions.new_fullname,
+                                              back_msg=back_msg.message_id)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("day"))
+def edit_fullname(call):
+
+    back_msg = bot.edit_message_text(chat_id=call.from_user.id,
+                                     message_id=call.message.id,
+                                     text="Enter new term")
+
+    bot.register_next_step_handler_by_chat_id(chat_id=call.from_user.id,
+                                              callback=new_term,
+                                              back_msg=back_msg.message_id)
+
+
+def new_term(call, back_msg):
+
+    conn = db.get_db()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""update polls_complete set term = ? where client_id = ?;""", (call.text, call.from_user.id))
+        conn.commit()
+
+    except mariadb.OperationalError:
+        bot.delete_message(chat_id=call.from_user.id,
+                           message_id=call.message_id)
+        try:
+            bot.edit_message_text(chat_id=call.from_user.id,
+                                  message_id=back_msg,
+                                  text="Enter date like this - yyyy-mm-dd")
+
+        except ApiTelegramException:
+            pass
+        conn.close()
+
+        bot.register_next_step_handler_by_chat_id(chat_id=call.from_user.id,
+                                                  callback=new_term,
+                                                  back_msg=back_msg)
+        return
+
+    conn.commit()
+
+    bot.delete_message(chat_id=call.from_user.id,
+                       message_id=call.message_id)
+
+    bot.edit_message_text(chat_id=call.from_user.id,
+                          message_id=back_msg,
+                          text=functions.confirmation_text(call),
+                          reply_markup=functions.confirmation_markup())
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("time"))
+def edit_fullname(call):
+    back_msg = bot.edit_message_text(chat_id=call.from_user.id,
+                                     message_id=call.message.id,
+                                     text="Enter new time")
+
+    bot.register_next_step_handler_by_chat_id(chat_id=call.from_user.id,
+                                              callback=new_time,
+                                              back_msg=back_msg.message_id)
+
+
+def new_time(call, back_msg):
+
+    conn = db.get_db()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""update polls_complete set term_time = ? where client_id = ?;""", (call.text, call.from_user.id))
+        conn.commit()
+
+    except mariadb.OperationalError:
+        bot.delete_message(chat_id=call.from_user.id,
+                           message_id=call.message_id)
+        try:
+            bot.edit_message_text(chat_id=call.from_user.id,
+                                  message_id=back_msg,
+                                  text="Enter time like this - hh:mm")
+
+        except ApiTelegramException:
+            pass
+        conn.close()
+
+        bot.register_next_step_handler_by_chat_id(chat_id=call.from_user.id,
+                                                  callback=new_term,
+                                                  back_msg=back_msg)
+        return
+
+    conn.commit()
+
+    bot.delete_message(chat_id=call.from_user.id,
+                       message_id=call.message_id)
+
+    bot.edit_message_text(chat_id=call.from_user.id,
+                          message_id=back_msg,
+                          text=functions.confirmation_text(call),
+                          reply_markup=functions.confirmation_markup())
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("description"))
+def edit_fullname(call):
+
+    back_msg = bot.edit_message_text(chat_id=call.from_user.id,
+                                     message_id=call.message.id,
+                                     text="Enter new description")
+
+    bot.register_next_step_handler_by_chat_id(chat_id=call.from_user.id,
+                                              callback=functions.new_description,
+                                              back_msg=back_msg.message_id)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("return"))
+def edit_tech_info(call):
+
+    text = functions.confirmation_text(call)
+
+    bot.edit_message_text(chat_id=call.from_user.id,
+                          message_id=call.message.id,
+                          text=text,
+                          reply_markup=functions.confirmation_markup())
+# finish of the correct keyboard
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("cancel"))
+def cancel_order(call):
+    conn = db.get_db()
+    cur = conn.cursor()
+
+    cur.execute("""delete from polls_complete where client_id = ?;""", (call.from_user.id, ))
+    cur.execute("""delete from polls_clientcarts where client_id = ?;""", (call.from_user.id,))
+    conn.commit()
+
+    bot.edit_message_text(chat_id=call.from_user.id,
+                          message_id=call.message.id,
+                          text="Your order was canceled")
+# finish of the confirmation keyboard
 
 
 @bot.inline_handler(func=lambda query: len(query.query) > 0)
@@ -464,8 +806,8 @@ def inline_query(query):
         but = types.InlineQueryResultArticle(
             id=f"{inline_id}", title=inline_info[1], description=f"₴ {inline_info[2]}",
             input_message_content=types.InputTextMessageContent(message_text=inline_info[1]),
-            reply_markup=functions.item_keyboard(query.from_user.id, inline_info[0])
-        )
+            reply_markup=functions.item_keyboard(query.from_user.id, inline_info[0]))
+
         inline_items.append(but)
         inline_id += 1
 
