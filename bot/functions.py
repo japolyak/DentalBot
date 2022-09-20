@@ -58,7 +58,7 @@ def item_keyboard(person_id, item_id):
 
     cur.execute("""select
                     polls_products.price as price,
-                    COUNT(*) as "count"
+                    count(*) as "count"
                     from polls_clientcarts
                     inner join polls_products
                     on polls_clientcarts.product_id = polls_products.id
@@ -105,7 +105,7 @@ def cart_function(message):
                             polls_products.product_name as name,
                             polls_products.price as price,
                             polls_clientcarts.product_id as product_id,
-                            COUNT(*) AS "count"
+                            count(*) AS "count"
                         from polls_clientcarts
                         inner join polls_products
                         on polls_clientcarts.product_id = polls_products.id
@@ -197,11 +197,14 @@ def edit_details_markup():
     return markup
 
 
-def new_fullname(call, back_msg):
+def new_fullname_description(call, back_msg, field):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""update polls_complete set patient_name = ? where client_id = ?;""", (call.text, call.from_user.id))
+    if field == "fullname":
+        cur.execute("""update polls_complete set patient_name = ? where client_id = ?;""", (call.text, call.from_user.id))
+    elif field == "description":
+        cur.execute("""update polls_complete set description = ? where client_id = ?;""", (call.text, call.from_user.id))
     conn.commit()
 
     bot.delete_message(chat_id=call.from_user.id,
@@ -213,23 +216,7 @@ def new_fullname(call, back_msg):
                           reply_markup=confirmation_markup())
 
 
-def new_description(call, back_msg):
-    conn = db.get_db()
-    cur = conn.cursor()
-
-    cur.execute("""update polls_complete set description = ? where client_id = ?;""", (call.text, call.from_user.id))
-    conn.commit()
-
-    bot.delete_message(chat_id=call.from_user.id,
-                       message_id=call.message_id)
-
-    bot.edit_message_text(chat_id=call.from_user.id,
-                          message_id=back_msg,
-                          text=confirmation_text(call),
-                          reply_markup=confirmation_markup())
-
-
-def confirmation(call):
+def accept(call):
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -243,7 +230,7 @@ def confirmation(call):
                     select
                         ? as client,
                         product_id as product_id,
-                        COUNT(*) AS "count"
+                        count(*) AS "count"
                     from polls_clientcarts
                     
                     where polls_clientcarts.client_id = ?
@@ -292,9 +279,7 @@ def confirmation(call):
 
     text = f"{priority_text} №{row_id}\nDeadline - {common[4]} on {common[3]}\nOrdered goods:\n{product_list}\nTotal summ: {price}"
 
-    bot.edit_message_text(chat_id=call.from_user.id,
-                          message_id=call.message.id,
-                          text=text)
+    return text
 
 
 def description_handler(call):
@@ -378,7 +363,7 @@ def editable_cart_item(call, row_id):
                             polls_products.product_name as name,
                             polls_products.price as price,
                             polls_clientcarts.product_id as product_id,
-                            COUNT(*) AS "count"
+                            count(*) AS "count"
                         from polls_clientcarts
                         inner join polls_products
                         on polls_clientcarts.product_id = polls_products.id

@@ -11,6 +11,7 @@ bot = telebot.TeleBot(token)
 
 @bot.message_handler(commands=['start'])
 def start(message):
+
     user_id = message.from_user.id
 
     conn = db.get_db()
@@ -26,7 +27,7 @@ def start(message):
         phone_button = types.KeyboardButton("Phone number", request_contact=True, )
         markup.add(phone_button)
         bot.send_message(chat_id=message.chat.id,
-                         text="You are not in DB\nEnter your number by pushing button below",
+                         text="You are not yet our customer\nEnter your number by pushing button below",
                          reply_markup=markup)
     else:
         functions.welcome_word(message)
@@ -34,6 +35,7 @@ def start(message):
 
 @bot.message_handler(content_types=['contact'])
 def check_phone(message):
+
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -58,6 +60,7 @@ def check_phone(message):
 
 
 def name_handler(message):
+
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -77,6 +80,7 @@ def name_handler(message):
 
 
 def address_handler(message):
+
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -91,6 +95,7 @@ def address_handler(message):
 
 @bot.message_handler(regexp="Goods")
 def category(message):
+
     bot.send_message(chat_id=message.chat.id,
                      text="You can choose our goods",
                      reply_markup=functions.keyboard('start'))
@@ -118,19 +123,53 @@ def buttons_handler(message):
 
 @bot.message_handler(regexp="Profile")
 def order_handler(message):
+
+    conn = db.get_db()
+    cur = conn.cursor()
+
+    cur.execute("""select
+                        polls_clients.client_name as client,
+                        polls_clients.client_address as adress,
+                        a.count as count
+                    from polls_clients
+                    inner join (select
+                                    client_id,
+                                    count(*) as "count"
+                                from polls_orders
+                                where client_id = ?
+                                group by client_id) as a
+                    on polls_clients.client_id = a.client_id
+                    where polls_clients.client_id = ?
+                    group by
+                        client,
+                        adress,
+                        count;""", (message.from_user.id, message.from_user.id))
+
+    info = cur.next()
+
     bot.send_message(chat_id=message.chat.id,
-                     text="Here will be inforamtion about your orders.")
+                     text=f"Hi, {info[0]} from {info[1]}!\nYou placed already {info[2]} orders.")
 
 
 @bot.message_handler(regexp="Information")
 def info_handler(message):
+
     bot.send_message(chat_id=message.chat.id,
-                     text="Bla bla bla.")
+                     text="""
+Hi, I'm Dental Bot!
+
+At first sight I'm simple Bot, but You can dig deeper and catch a sight of unseen.
+I was built on Python's TelegramBotApi framework with using of MariaDB database wherein data is stored.
+My main role is to process and confirmation orders from dental offices, but i can be modified on your personal needs.
+ 
+P.S.
+If You want to have a quick word with my founder - dm him @japolyak""")
 
 
 # start of items keyboard
 @bot.callback_query_handler(func=lambda call: call.data.startswith("-1"))
 def minus_call(call):
+
     item_id = call.data.split()[1]
 
     try:
@@ -150,6 +189,7 @@ def minus_call(call):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("quantity"))
 def quantity_handler(call):
+
     item_id = call.data.split()[1]
 
     msg = bot.send_message(chat_id=call.from_user.id,
@@ -244,8 +284,9 @@ def clean_call(call):
         pass
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("cart"))
+@bot.callback_query_handler(func=lambda call: call.data == "cart")
 def cart_call(call):
+
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -254,7 +295,7 @@ def cart_call(call):
 
     if not check:
         return bot.send_message(chat_id=call.from_user.id,
-                                text="You bin is empty")
+                                text="You cart is empty")
 
     message_text, priority_text = functions.cart_function(call)
 
@@ -263,23 +304,26 @@ def cart_call(call):
                      reply_markup=functions.cart_markup(priority_text))
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("back"))
+@bot.callback_query_handler(func=lambda call: call.data == "back")
 def back_call(call):
-    bot.edit_message_text(text="Привет! Я помогу подобрать товар!",
+
+    bot.edit_message_text(text="Hi, You can choose one of our goods!",
                           inline_message_id=call.inline_message_id,
                           reply_markup=functions.keyboard('start'))
 # finish of items keyboard
 
 
 # start of carts keyboard
-@bot.callback_query_handler(func=lambda call: call.data.startswith("edit"))
+@bot.callback_query_handler(func=lambda call: call.data == "edit")
 def edit_items(call):
+
     functions.edit_markup(call)
 
 
 # start of editing keyboard
 @bot.callback_query_handler(func=lambda call: call.data.startswith("item"))
 def secelt_item(call):
+
     row_id = int(call.data.split()[1])
     functions.cart_edit_markup(call=call, row_id=row_id)
 
@@ -314,6 +358,7 @@ def editable_minus(call):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("rewrite"))
 def rewrite_quantity(call):
+
     item_id = call.data.split()[1]
     row_id = int(call.data.split()[2])
 
@@ -329,6 +374,7 @@ def rewrite_quantity(call):
 
 
 def next_rewrite_quantity(call, edit_msg, item_id, row_id, cart_call):
+
     try:
         quantity = int(call.text)
 
@@ -402,8 +448,9 @@ def editable_minus(call):
         pass
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("continue"))
+@bot.callback_query_handler(func=lambda call: call.data == "continue")
 def back_to_goods(call):
+
     bot.edit_message_text(chat_id=call.from_user.id,
                           message_id=call.message.id,
                           text="You can choose our goods",
@@ -424,8 +471,9 @@ def edit_items(call):
     functions.edit_markup(call=call, row_id=row_id)
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("finish"))
+@bot.callback_query_handler(func=lambda call: call.data == "finish")
 def close_editing(call):
+
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -445,8 +493,9 @@ def close_editing(call):
 # finish of editing keyboard
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("priority"))
+@bot.callback_query_handler(func=lambda call: call.data == "priority")
 def priority_call(call):
+
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -468,8 +517,9 @@ def priority_call(call):
                           reply_markup=functions.cart_markup(priority_text))
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("delete"))
+@bot.callback_query_handler(func=lambda call: call.data == "delete")
 def delete_call(call):
+
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -483,8 +533,9 @@ def delete_call(call):
                           chat_id=call.message.chat.id)
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("confirmation"))
+@bot.callback_query_handler(func=lambda call: call.data == "confirmation")
 def accept_call(call):
+
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -604,8 +655,9 @@ def term_time_handler(call, edit_msg):
 # finish of carts keyboard
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("yes"))
+@bot.callback_query_handler(func=lambda call: call.data == "yes")
 def yes_call(call):
+
     msg = bot.edit_message_text(chat_id=call.from_user.id,
                                 message_id=call.message.id,
                                 text="Enter description")
@@ -614,8 +666,9 @@ def yes_call(call):
                                    callback=functions.description_handler)
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("no"))
+@bot.callback_query_handler(func=lambda call: call.data == "no")
 def show_order_call(call):
+
     text = functions.confirmation_text(call)
 
     bot.edit_message_text(chat_id=call.from_user.id,
@@ -625,12 +678,15 @@ def show_order_call(call):
 
 
 # start of the confirmation keyboard
-@bot.callback_query_handler(func=lambda call: call.data.startswith("accept"))
+@bot.callback_query_handler(func=lambda call: call.data == "accept")
 def show_order_call(call):
-    functions.confirmation(call)
+
+    bot.edit_message_text(chat_id=call.from_user.id,
+                          message_id=call.message.id,
+                          text=functions.accept(call))
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("correct"))
+@bot.callback_query_handler(func=lambda call: call.data == "correct")
 def edit_tech_info(call):
 
     bot.edit_message_text(text="Choose what do you whant to change",
@@ -640,7 +696,7 @@ def edit_tech_info(call):
 
 
 # start of the correct keyboard
-@bot.callback_query_handler(func=lambda call: call.data.startswith("fullname"))
+@bot.callback_query_handler(func=lambda call: call.data == "fullname")
 def edit_fullname(call):
 
     back_msg = bot.edit_message_text(chat_id=call.from_user.id,
@@ -648,11 +704,12 @@ def edit_fullname(call):
                                      text="Enter new fullname of the patient")
 
     bot.register_next_step_handler_by_chat_id(chat_id=call.from_user.id,
-                                              callback=functions.new_fullname,
-                                              back_msg=back_msg.message_id)
+                                              callback=functions.new_fullname_description,
+                                              back_msg=back_msg.message_id,
+                                              field=call.data)
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("day"))
+@bot.callback_query_handler(func=lambda call: call.data == "day")
 def edit_fullname(call):
 
     back_msg = bot.edit_message_text(chat_id=call.from_user.id,
@@ -701,8 +758,9 @@ def new_term(call, back_msg):
                           reply_markup=functions.confirmation_markup())
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("time"))
+@bot.callback_query_handler(func=lambda call: call.data == "time")
 def edit_fullname(call):
+
     back_msg = bot.edit_message_text(chat_id=call.from_user.id,
                                      message_id=call.message.id,
                                      text="Enter new time")
@@ -749,7 +807,7 @@ def new_time(call, back_msg):
                           reply_markup=functions.confirmation_markup())
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("description"))
+@bot.callback_query_handler(func=lambda call: call.data == "description")
 def edit_fullname(call):
 
     back_msg = bot.edit_message_text(chat_id=call.from_user.id,
@@ -757,24 +815,24 @@ def edit_fullname(call):
                                      text="Enter new description")
 
     bot.register_next_step_handler_by_chat_id(chat_id=call.from_user.id,
-                                              callback=functions.new_description,
-                                              back_msg=back_msg.message_id)
+                                              callback=functions.new_fullname_description,
+                                              back_msg=back_msg.message_id,
+                                              field=call.data)
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("return"))
+@bot.callback_query_handler(func=lambda call: call.data == "return")
 def edit_tech_info(call):
-
-    text = functions.confirmation_text(call)
 
     bot.edit_message_text(chat_id=call.from_user.id,
                           message_id=call.message.id,
-                          text=text,
+                          text=functions.confirmation_text(call),
                           reply_markup=functions.confirmation_markup())
 # finish of the correct keyboard
 
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("cancel"))
+@bot.callback_query_handler(func=lambda call: call.data == "cancel")
 def cancel_order(call):
+
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -790,6 +848,7 @@ def cancel_order(call):
 
 @bot.inline_handler(func=lambda query: len(query.query) > 0)
 def inline_query(query):
+
     category = query.query
     conn = db.get_db()
     cur = conn.cursor()
