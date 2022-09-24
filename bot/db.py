@@ -1,15 +1,16 @@
 import mariadb
 import sys
+import os
 
 
 def get_db():
     try:
         conn = mariadb.connect(
-            user="root",
-            password="R1dNAUKRa1NA",
-            host="127.0.0.1",
-            port=3306,
-            database="app_orders"
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASS"),
+            host=os.getenv("DB_HOST"),
+            port=int(os.getenv("DB_PORT")),
+            database=os.getenv("DB_DB")
         )
     except mariadb.Error as e:
         print(f"Error connecting to MariaDB Platform: {e}")

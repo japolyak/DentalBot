@@ -375,3 +375,37 @@ def editable_cart_item(call, row_id):
                             price) as a) as b where row_num = ?;""", (call.from_user.id, row_id))
 
     return cur.next(), items_quantity, row_id
+
+
+def name_handler(message):
+
+    conn = db.get_db()
+    cur = conn.cursor()
+
+    cur.execute("""update polls_clients
+                    set
+                        client_name = ?
+                    where
+                        client_id = ?;""", (message.text, message.from_user.id))
+    conn.commit()
+
+    msg = bot.send_message(chat_id=message.chat.id,
+                           text="Enter your address",
+                           reply_markup=telebot.types.ReplyKeyboardRemove(selective=False))
+
+    bot.register_next_step_handler(message=msg,
+                                   callback=address_handler)
+
+
+def address_handler(message):
+
+    conn = db.get_db()
+    cur = conn.cursor()
+
+    cur.execute("""update polls_clients
+                    set
+                        client_address = ?
+                    where
+                        client_id = ?;""", (message.text, message.from_user.id))
+    conn.commit()
+    functions.welcome_word(message)

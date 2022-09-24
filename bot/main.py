@@ -32,6 +32,8 @@ def start(message):
     else:
         functions.welcome_word(message)
 
+# from bot import bot
+
 
 @bot.message_handler(content_types=['contact'])
 def check_phone(message):
@@ -52,45 +54,45 @@ def check_phone(message):
     conn.commit()
 
     msg = bot.send_message(chat_id=message.chat.id,
-                           text="Enter your dental name",
+                           text="Please, enter your dental name",
                            reply_markup=telebot.types.ReplyKeyboardRemove())
 
     bot.register_next_step_handler(message=msg,
-                                   callback=name_handler)
+                                   callback=functions.name_handler)
 
 
-def name_handler(message):
-
-    conn = db.get_db()
-    cur = conn.cursor()
-
-    cur.execute("""update polls_clients
-                    set
-                        client_name = ?
-                    where
-                        client_id = ?;""", (message.text, message.from_user.id))
-    conn.commit()
-
-    msg = bot.send_message(chat_id=message.chat.id,
-                           text="Enter your address",
-                           reply_markup=telebot.types.ReplyKeyboardRemove(selective=False))
-
-    bot.register_next_step_handler(message=msg,
-                                   callback=address_handler)
-
-
-def address_handler(message):
-
-    conn = db.get_db()
-    cur = conn.cursor()
-
-    cur.execute("""update polls_clients
-                    set
-                        client_address = ?
-                    where
-                        client_id = ?;""", (message.text, message.from_user.id))
-    conn.commit()
-    functions.welcome_word(message)
+# def name_handler(message):
+#
+#     conn = db.get_db()
+#     cur = conn.cursor()
+#
+#     cur.execute("""update polls_clients
+#                     set
+#                         client_name = ?
+#                     where
+#                         client_id = ?;""", (message.text, message.from_user.id))
+#     conn.commit()
+#
+#     msg = bot.send_message(chat_id=message.chat.id,
+#                            text="Enter your address",
+#                            reply_markup=telebot.types.ReplyKeyboardRemove(selective=False))
+#
+#     bot.register_next_step_handler(message=msg,
+#                                    callback=address_handler)
+#
+#
+# def address_handler(message):
+#
+#     conn = db.get_db()
+#     cur = conn.cursor()
+#
+#     cur.execute("""update polls_clients
+#                     set
+#                         client_address = ?
+#                     where
+#                         client_id = ?;""", (message.text, message.from_user.id))
+#     conn.commit()
+#     functions.welcome_word(message)
 
 
 @bot.message_handler(regexp="Goods")
@@ -127,28 +129,40 @@ def order_handler(message):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""select
-                        polls_clients.client_name as client,
-                        polls_clients.client_address as adress,
-                        a.count as count
-                    from polls_clients
-                    inner join (select
-                                    client_id,
-                                    count(*) as "count"
-                                from polls_orders
-                                where client_id = ?
-                                group by client_id) as a
-                    on polls_clients.client_id = a.client_id
-                    where polls_clients.client_id = ?
-                    group by
-                        client,
-                        adress,
-                        count;""", (message.from_user.id, message.from_user.id))
+    cur.execute("select * from polls_orders where client_id = ?;", (message.from_user.id, ))
 
-    info = cur.next()
+    existence = cur.next()
 
-    bot.send_message(chat_id=message.chat.id,
-                     text=f"Hi, {info[0]} from {info[1]}!\nYou placed already {info[2]} orders.")
+    if not existence:
+        cur.execute("select client_name, client_address from polls_clients where client_id = ?;", (message.from_user.id, ))
+
+        info = cur.next()
+
+        bot.send_message(chat_id=message.chat.id,
+                         text=f"Hi, {info[0]} from {info[1]}!\nYou haven't yet placed any orders.")
+    else:
+        cur.execute("""select
+                            polls_clients.client_name as client,
+                            polls_clients.client_address as adress,
+                            a.count as count
+                        from polls_clients
+                        inner join (select
+                                        client_id,
+                                        count(*) as "count"
+                                    from polls_orders
+                                    where client_id = ?
+                                    group by client_id) as a
+                        on polls_clients.client_id = a.client_id
+                        where polls_clients.client_id = ?
+                        group by
+                            client,
+                            adress,
+                            count;""", (message.from_user.id, message.from_user.id))
+
+        info = cur.next()
+
+        bot.send_message(chat_id=message.chat.id,
+                         text=f"Hi, {info[0]} from {info[1]}!\nYou have already placed {info[2]} orders.")
 
 
 @bot.message_handler(regexp="Information")
@@ -262,6 +276,7 @@ def plus_call(call):
     cur.execute("""insert into polls_clientcarts (client_id, product_id)
                     values (?, ?);""", (call.from_user.id, item_id,))
     conn.commit()
+
     bot.edit_message_reply_markup(inline_message_id=call.inline_message_id,
                                   reply_markup=functions.item_keyboard(call.from_user.id, item_id))
 
