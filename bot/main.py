@@ -11,11 +11,13 @@ bot = telebot.TeleBot(token)
 
 @bot.message_handler(commands=['start'])
 def start(message):
-
+    print("1")
     user_id = message.from_user.id
-
+    print("2")
     conn = db.get_db()
+    print("3")
     cur = conn.cursor()
+    print("4")
     cur.execute("""select * from polls_clients where client_id = ?;""", (user_id,))
     check = cur.next()
 
