@@ -891,4 +891,5 @@ def inline_query(query):
 
 
 if __name__ == '__main__':
+    print("starting_bot")
     bot.polling(none_stop=True)
