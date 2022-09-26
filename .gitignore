@@ -3,6 +3,9 @@ venv
 .env
 no.py
 __pycache__
+db.sql
+dentshop
+dentshop/*
 
 # General
 .DS_Store

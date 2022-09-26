@@ -1,9 +1,11 @@
 import mariadb
 import sys
 import os
+import logging
 
 
 def get_db():
+
     try:
         conn = mariadb.connect(
             user=os.getenv("DB_USER"),
@@ -12,8 +14,9 @@ def get_db():
             port=int(os.getenv("DB_PORT")),
             database=os.getenv("DB_DB")
         )
+
     except mariadb.Error as e:
-        print(f"Error connecting to MariaDB Platform: {e}")
+        logging.critical(f"Error connecting to MariaDB Platform: {e}")
         sys.exit(1)
 
     return conn

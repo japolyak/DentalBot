@@ -1,4 +1,6 @@
-from main import *
+from telebot import types
+from .bot_token import bot
+from . import db, markups
 
 
 def welcome_word(message):
@@ -19,71 +21,17 @@ def welcome_word(message):
                      reply_markup=markup)
 
 
-def keyboard(call):
-    if call == "start":
-        conn = db.get_db()
-        cur = conn.cursor()
-
-        cur.execute("""select distinct category from polls_products;""")
-        list_of_goods = []
-
-        while True:
-            category_item = cur.next()
-            if not category_item:
-                break
-            list_of_goods.append(category_item[0])
-
-        buttons = []
-
-        for good in list_of_goods:
-            buttons.append(types.InlineKeyboardButton(text=good,
-                                                      switch_inline_query_current_chat=good))
-
-        markup = types.InlineKeyboardMarkup(buttons_menu(buttons, n_cols=1))
-        return markup
-
-
 def buttons_menu(buttons, n_cols, header_buttons=None, footer_buttons=None):
+
     menu = [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]
+
     if header_buttons:
         menu.insert(0, header_buttons)
+
     if footer_buttons:
         menu.append(footer_buttons)
+
     return menu
-
-
-def item_keyboard(person_id, item_id):
-    conn = db.get_db()
-    cur = conn.cursor()
-
-    cur.execute("""select
-                    polls_products.price as price,
-                    count(*) as "count"
-                    from polls_clientcarts
-                    inner join polls_products
-                    on polls_clientcarts.product_id = polls_products.id
-                    where polls_clientcarts.product_id = ? and polls_clientcarts.client_id = ?
-                    group by price;""", (item_id, person_id))
-
-    item_quantity = cur.next()
-
-    if not item_quantity:
-        item_quantity = (0, 0)
-
-    price = item_quantity[0]
-    quantity = item_quantity[1]
-
-    markup = types.InlineKeyboardMarkup()
-
-    minus_one = types.InlineKeyboardButton(text='-1', callback_data=f'-1 {item_id}')
-    orders = types.InlineKeyboardButton(text=f'{quantity} pcs', callback_data=f'quantity {item_id}')
-    plus_one = types.InlineKeyboardButton(text='+1', callback_data=f'+1 {item_id}')
-    clear = types.InlineKeyboardButton(text='Clear', callback_data=f'clean {item_id}')
-    cart = types.InlineKeyboardButton(text=f'{price * quantity}₴', callback_data=f'cart')
-    back = types.InlineKeyboardButton(text='Back', callback_data=f'back')
-
-    markup.add(minus_one, orders, plus_one).add(clear, cart).add(back)
-    return markup
 
 
 def cart_function(message):
@@ -91,25 +39,26 @@ def cart_function(message):
     cur = conn.cursor()
 
     while True:
-        cur.execute("""select priority from polls_complete where client_id = ?;""", (message.from_user.id, ))
+        cur.execute("""select priority from bot_shop.shop_cartmeta where client_id = ?;""", (message.from_user.id, ))
         priority_inf = cur.next()
 
         if not priority_inf:
-            cur.execute("""insert into polls_complete (client_id) values (?);""", (message.from_user.id, ))
+            cur.execute("""insert into bot_shop.shop_cartmeta (client_id, patient_name, deadline, term_time, description, priority)
+            values (?, ?, ?, ?, ?, ?);""", (message.from_user.id, "Patient", "2022-09-26", "18:00", "No", False))
             conn.commit()
             continue
         break
 
     cur.execute("""select
-                            polls_clientcarts.client_id as client,
-                            polls_products.product_name as name,
-                            polls_products.price as price,
-                            polls_clientcarts.product_id as product_id,
+                            bot_shop.shop_clientcarts.client_id as client,
+                            bot_shop.shop_products.product_name as name,
+                            bot_shop.shop_products.price as price,
+                            bot_shop.shop_clientcarts.product_id as product_id,
                             count(*) AS "count"
-                        from polls_clientcarts
-                        inner join polls_products
-                        on polls_clientcarts.product_id = polls_products.id
-                        where polls_clientcarts.client_id = ?
+                        from bot_shop.shop_clientcarts
+                        inner join bot_shop.shop_products
+                        on bot_shop.shop_clientcarts.product_id = bot_shop.shop_products.id
+                        where bot_shop.shop_clientcarts.client_id = ?
                         group by
                             client,
                             product_id,
@@ -139,33 +88,11 @@ def cart_function(message):
     return text, priority_text
 
 
-def cart_markup(text):
-    markup = types.InlineKeyboardMarkup()
-
-    edit = types.InlineKeyboardButton(text='Edit', callback_data='edit')  # add possibility
-    clean = types.InlineKeyboardButton(text='Clean', callback_data='delete')
-    priority = types.InlineKeyboardButton(text=text, callback_data='priority')
-    confirm = types.InlineKeyboardButton(text='Confirm order', callback_data='confirmation')
-
-    markup.add(edit, clean).add(priority).add(confirm)
-    return markup
-
-
-def yes_no():
-    markup = types.InlineKeyboardMarkup()
-
-    yes = types.InlineKeyboardButton(text="Yes", callback_data="yes")
-    no = types.InlineKeyboardButton(text="No", callback_data="no")
-
-    markup.add(yes, no)
-    return markup
-
-
 def confirmation_text(call):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""select patient_name, term, term_time, description from polls_complete where client_id = ?;""", (call.from_user.id, ))
+    cur.execute("""select patient_name, deadline, term_time, description from bot_shop.shop_cartmeta where client_id = ?;""", (call.from_user.id, ))
     details = cur.next()
 
     text = f"Patient full name: {details[0]}\nTerm: {details[1]}\nTime: {details[2]}\nDescription: {details[3]}"
@@ -173,38 +100,14 @@ def confirmation_text(call):
     return text
 
 
-def confirmation_markup():
-    markup = types.InlineKeyboardMarkup()
-
-    confirm = types.InlineKeyboardButton(text="Confirm order", callback_data="accept")
-    correct = types.InlineKeyboardButton(text="Correct details", callback_data="correct")
-    cancel = types.InlineKeyboardButton(text="Cancel order", callback_data="cancel")
-
-    markup.add(confirm).add(correct).add(cancel)
-    return markup
-
-
-def edit_details_markup():
-    markup = types.InlineKeyboardMarkup()
-
-    patient = types.InlineKeyboardButton(text="Patient name", callback_data="fullname")
-    term = types.InlineKeyboardButton(text="Term", callback_data="day")
-    time = types.InlineKeyboardButton(text="Time", callback_data="time")
-    desc = types.InlineKeyboardButton(text="Descrition", callback_data="description")
-    back = types.InlineKeyboardButton(text="Back", callback_data="return")
-
-    markup.add(patient).add(term).add(time).add(desc).add(back)
-    return markup
-
-
 def new_fullname_description(call, back_msg, field):
     conn = db.get_db()
     cur = conn.cursor()
 
     if field == "fullname":
-        cur.execute("""update polls_complete set patient_name = ? where client_id = ?;""", (call.text, call.from_user.id))
+        cur.execute("""update bot_shop.shop_cartmeta set patient_name = ? where client_id = ?;""", (call.text, call.from_user.id))
     elif field == "description":
-        cur.execute("""update polls_complete set description = ? where client_id = ?;""", (call.text, call.from_user.id))
+        cur.execute("""update bot_shop.shop_cartmeta set description = ? where client_id = ?;""", (call.text, call.from_user.id))
     conn.commit()
 
     bot.delete_message(chat_id=call.from_user.id,
@@ -213,38 +116,38 @@ def new_fullname_description(call, back_msg, field):
     bot.edit_message_text(chat_id=call.from_user.id,
                           message_id=back_msg,
                           text=confirmation_text(call),
-                          reply_markup=confirmation_markup())
+                          reply_markup=markups.confirmation_markup())
 
 
 def accept(call):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""insert into polls_orders (client_id, patient_name, term, term_time, descrition, priority)
-                    select client_id, patient_name, term, term_time, description, priority
-                    from polls_complete
+    cur.execute("""insert into bot_shop.shop_orders (client_id, patient_name, deadline, term_time, description, priority)
+                    select client_id, patient_name, deadline, term_time, description, priority
+                    from bot_shop.shop_cartmeta
                     where client_id = ?;""", (call.from_user.id, ))
     row_id = cur.lastrowid
 
-    cur.execute("""insert into polls_order_goods (order_id, product_id, quantity)
+    cur.execute("""insert into bot_shop.shop_orderedgoods (order_id, product_id, quantity)
                     select
                         ? as client,
                         product_id as product_id,
                         count(*) AS "count"
-                    from polls_clientcarts
+                    from bot_shop.shop_clientcarts
                     
-                    where polls_clientcarts.client_id = ?
+                    where bot_shop.shop_clientcarts.client_id = ?
                     group by
                         client,
                         product_id
                     order by count;""", (row_id, call.from_user.id,))
 
-    cur.execute("""delete from polls_complete where client_id = ?;""", (call.from_user.id, ))
-    cur.execute("""delete from polls_clientcarts where client_id = ?;""", (call.from_user.id,))
+    cur.execute("""delete from bot_shop.shop_cartmeta where client_id = ?;""", (call.from_user.id, ))
+    cur.execute("""delete from bot_shop.shop_clientcarts where client_id = ?;""", (call.from_user.id,))
 
     conn.commit()
 
-    cur.execute("""select * from polls_orders where order_id = ?;""", (row_id,))
+    cur.execute("""select * from bot_shop.shop_orders where order_id = ?;""", (row_id,))
     common = cur.next()
 
     priority = 1
@@ -255,13 +158,13 @@ def accept(call):
         priority_text = "Prioritized order (+30%)"
 
     cur.execute("""select
-                        polls_order_goods.quantity as quantity,
-                        polls_products.product_name as name,
-                        polls_products.price as price
-                    from polls_order_goods
-                    inner join polls_products
-                    on polls_order_goods.product_id = polls_products.id
-                    where polls_order_goods.order_id = ?
+                        bot_shop.shop_orderedgoods.quantity as quantity,
+                        bot_shop.shop_products.product_name as name,
+                        bot_shop.shop_products.price as price
+                    from bot_shop.shop_orderedgoods
+                    inner join bot_shop.shop_products
+                    on bot_shop.shop_orderedgoods.product_id = bot_shop.shop_products.id
+                    where bot_shop.shop_orderedgoods.order_id = ?
                     group by
                         name,
                         price,
@@ -286,14 +189,14 @@ def description_handler(call):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""update polls_complete set description = ? where client_id = ?;""", (call.text, call.from_user.id))
+    cur.execute("""update bot_shop.shop_cartmeta set description = ? where client_id = ?;""", (call.text, call.from_user.id))
     conn.commit()
 
     text = confirmation_text(call)
 
     bot.send_message(chat_id=call.from_user.id,
                      text=text,
-                     reply_markup=confirmation_markup())
+                     reply_markup=markups.confirmation_markup())
 
 
 def edit_markup(call, row_id=1):
@@ -325,6 +228,7 @@ def cart_edit_markup(call, row_id):
     quantity = types.InlineKeyboardButton(text=f"{n_item[3]}", callback_data=f"rewrite {n_item[4]} {n_item[0]}")
     plus_one = types.InlineKeyboardButton(text="+1", callback_data=f"plus {n_item[4]} {n_item[0]}")
     back = types.InlineKeyboardButton(text="Back to goods", callback_data="continue")
+
     back_move = types.InlineKeyboardButton(text="<--", callback_data=f"reaward {row_id}")
     in_item = types.InlineKeyboardButton(text=f"{row_id}/{items_quantity}", callback_data="anything")
     forvard_move = types.InlineKeyboardButton(text="-->", callback_data=f"forward {row_id}")
@@ -345,7 +249,7 @@ def editable_cart_item(call, row_id):
     cur.execute("""select count(*) 
                         from 
                             (select distinct product_id 
-                             from polls_clientcarts 
+                             from bot_shop.shop_clientcarts 
                              where client_id = ?) as b;""", (call.from_user.id,))
 
     items_quantity = int(cur.next()[0])
@@ -359,15 +263,15 @@ def editable_cart_item(call, row_id):
     cur.execute("""select row_num, name, price, count, product_id, client from
                         (select row_number() over () as row_num, name, price, count, product_id, client from
                         (select
-                            polls_clientcarts.client_id as client,
-                            polls_products.product_name as name,
-                            polls_products.price as price,
-                            polls_clientcarts.product_id as product_id,
+                            bot_shop.shop_clientcarts.client_id as client,
+                            bot_shop.shop_products.product_name as name,
+                            bot_shop.shop_products.price as price,
+                            bot_shop.shop_clientcarts.product_id as product_id,
                             count(*) AS "count"
-                        from polls_clientcarts
-                        inner join polls_products
-                        on polls_clientcarts.product_id = polls_products.id
-                        where polls_clientcarts.client_id = ?
+                        from bot_shop.shop_clientcarts
+                        inner join bot_shop.shop_products
+                        on bot_shop.shop_clientcarts.product_id = bot_shop.shop_products.id
+                        where bot_shop.shop_clientcarts.client_id = ?
                         group by
                             client,
                             product_id,
@@ -375,37 +279,3 @@ def editable_cart_item(call, row_id):
                             price) as a) as b where row_num = ?;""", (call.from_user.id, row_id))
 
     return cur.next(), items_quantity, row_id
-
-
-def name_handler(message):
-
-    conn = db.get_db()
-    cur = conn.cursor()
-
-    cur.execute("""update polls_clients
-                    set
-                        client_name = ?
-                    where
-                        client_id = ?;""", (message.text, message.from_user.id))
-    conn.commit()
-
-    msg = bot.send_message(chat_id=message.chat.id,
-                           text="Enter your address",
-                           reply_markup=telebot.types.ReplyKeyboardRemove(selective=False))
-
-    bot.register_next_step_handler(message=msg,
-                                   callback=address_handler)
-
-
-def address_handler(message):
-
-    conn = db.get_db()
-    cur = conn.cursor()
-
-    cur.execute("""update polls_clients
-                    set
-                        client_address = ?
-                    where
-                        client_id = ?;""", (message.text, message.from_user.id))
-    conn.commit()
-    functions.welcome_word(message)
