@@ -11,7 +11,7 @@ def edit_fullname(call):
                                      text="Enter new fullname of the patient")
 
     bot.register_next_step_handler_by_chat_id(chat_id=call.from_user.id,
-                                              callback=functions.new_fullname_description,
+                                              callback=functions.new_fullname_or_description,
                                               back_msg=back_msg.message_id,
                                               field=call.data)
 
@@ -60,8 +60,8 @@ def new_term(call, back_msg):
 
     bot.edit_message_text(chat_id=call.from_user.id,
                           message_id=back_msg,
-                          text=functions.confirmation_text(call),
-                          reply_markup=markups.confirmation_markup())
+                          text=functions.order_details(call),
+                          reply_markup=markups.order_confirmation_markup())
 
 
 def edit_time(call):
@@ -108,8 +108,8 @@ def new_time(call, back_msg):
 
     bot.edit_message_text(chat_id=call.from_user.id,
                           message_id=back_msg,
-                          text=functions.confirmation_text(call),
-                          reply_markup=markups.confirmation_markup())
+                          text=functions.order_details(call),
+                          reply_markup=markups.order_confirmation_markup())
 
 
 def edit_description(call):
@@ -119,7 +119,7 @@ def edit_description(call):
                                      text="Enter new description")
 
     bot.register_next_step_handler_by_chat_id(chat_id=call.from_user.id,
-                                              callback=functions.new_fullname_description,
+                                              callback=functions.new_fullname_or_description,
                                               back_msg=back_msg.message_id,
                                               field=call.data)
 
@@ -128,8 +128,8 @@ def edit_tech_info(call):
 
     bot.edit_message_text(chat_id=call.from_user.id,
                           message_id=call.message.id,
-                          text=functions.confirmation_text(call),
-                          reply_markup=markups.confirmation_markup())
+                          text=functions.order_details(call),
+                          reply_markup=markups.order_confirmation_markup())
 
 
 def init_bot():

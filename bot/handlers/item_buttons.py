@@ -3,7 +3,7 @@ from .. import db, functions, markups
 from telebot.apihelper import ApiTelegramException
 
 
-def minus_call(call):
+def minus_item(call):
 
     item_id = call.data.split()[1]
 
@@ -22,7 +22,7 @@ def minus_call(call):
         pass
 
 
-def quantity_handler(call):
+def item_quantity(call):
 
     item_id = call.data.split()[1]
 
@@ -88,7 +88,7 @@ def entered_quantity(call, edit_msg, item_id, edit_markup):
         pass
 
 
-def plus_call(call):
+def plus_item(call):
 
     item_id = call.data.split()[1]
 
@@ -106,7 +106,7 @@ def plus_call(call):
         pass
 
 
-def clear_call(call):
+def delete_item(call):
 
     item_id = call.data.split()[1]
 
@@ -123,7 +123,7 @@ def clear_call(call):
         pass
 
 
-def cart_call(call):
+def show_cart(call):
 
     conn = db.get_db()
     cur = conn.cursor()
@@ -135,24 +135,24 @@ def cart_call(call):
         return bot.send_message(chat_id=call.from_user.id,
                                 text="You cart is empty")
 
-    message_text, priority_text = functions.cart_function(call)
+    message_text, priority_text = functions.items_in_cart(call)
 
     bot.send_message(chat_id=call.from_user.id,
                      text=message_text,
                      reply_markup=markups.cart_markup(priority_text))
 
 
-def back_call(call):
+def back_to_catalogue(call):
 
-    bot.edit_message_text(text="Hi, You can choose one of our goods.py!",
+    bot.edit_message_text(text="Hi, You can choose one of our goods!",
                           inline_message_id=call.inline_message_id,
-                          reply_markup=markups.keyboard('start'))
+                          reply_markup=markups.catalogue_markup())
 
 
 def init_bot():
-    bot.register_callback_query_handler(callback=minus_call, func=lambda call: call.data.startswith("-1"))
-    bot.register_callback_query_handler(callback=quantity_handler, func=lambda call: call.data.startswith("quantity"))
-    bot.register_callback_query_handler(callback=plus_call, func=lambda call: call.data.startswith("+1"))
-    bot.register_callback_query_handler(callback=clear_call, func=lambda call: call.data.startswith("clear"))
-    bot.register_callback_query_handler(callback=cart_call, func=lambda call: call.data == "cart")
-    bot.register_callback_query_handler(callback=back_call, func=lambda call: call.data == "back")
+    bot.register_callback_query_handler(callback=minus_item, func=lambda call: call.data.startswith("-1"))
+    bot.register_callback_query_handler(callback=item_quantity, func=lambda call: call.data.startswith("quantity"))
+    bot.register_callback_query_handler(callback=plus_item, func=lambda call: call.data.startswith("+1"))
+    bot.register_callback_query_handler(callback=delete_item, func=lambda call: call.data.startswith("clear"))
+    bot.register_callback_query_handler(callback=show_cart, func=lambda call: call.data == "cart")
+    bot.register_callback_query_handler(callback=back_to_catalogue, func=lambda call: call.data == "back")

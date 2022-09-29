@@ -6,10 +6,18 @@ from telebot.apihelper import ApiTelegramException
 def select_item(call):
 
     row_id = int(call.data.split()[1])
-    functions.cart_edit_markup(call=call, row_id=row_id)
+    functions.edit_item_in_cart(call=call, row_id=row_id)
 
 
-def editable_minus(call):
+def back_to_catalogue(call):
+
+    bot.edit_message_text(chat_id=call.from_user.id,
+                          message_id=call.message.id,
+                          text="You can choose our goods",
+                          reply_markup=markups.catalogue_markup())
+
+
+def minus_item(call):
 
     item_id = call.data.split()[1]
     row_id = int(call.data.split()[2])
@@ -25,7 +33,7 @@ def editable_minus(call):
         conn.commit()
 
         try:
-            functions.cart_edit_markup(call=call, row_id=row_id)
+            functions.edit_item_in_cart(call=call, row_id=row_id)
 
         except TypeError:
             bot.edit_message_text(chat_id=call.from_user.id,
@@ -36,7 +44,7 @@ def editable_minus(call):
         pass
 
 
-def rewrite_quantity(call):
+def item_quantity(call):
 
     item_id = call.data.split()[1]
     row_id = int(call.data.split()[2])
@@ -45,14 +53,14 @@ def rewrite_quantity(call):
                            text="Enter quantity")
     edit_msg = msg.id
     bot.register_next_step_handler_by_chat_id(chat_id=call.from_user.id,
-                                              callback=next_rewrite_quantity,
+                                              callback=quantity_handler,
                                               edit_msg=edit_msg,
                                               item_id=item_id,
                                               row_id=row_id,
                                               cart_call=call)
 
 
-def next_rewrite_quantity(call, edit_msg, item_id, row_id, cart_call):
+def quantity_handler(call, edit_msg, item_id, row_id, cart_call):
 
     try:
         quantity = int(call.text)
@@ -70,7 +78,7 @@ def next_rewrite_quantity(call, edit_msg, item_id, row_id, cart_call):
             pass
 
         bot.register_next_step_handler_by_chat_id(chat_id=call.from_user.id,
-                                                  callback=next_rewrite_quantity,
+                                                  callback=quantity_handler,
                                                   edit_msg=edit_msg,
                                                   item_id=item_id,
                                                   row_id=row_id,
@@ -100,13 +108,13 @@ def next_rewrite_quantity(call, edit_msg, item_id, row_id, cart_call):
     bot.delete_message(chat_id=call.from_user.id,
                        message_id=edit_msg)
     try:
-        functions.cart_edit_markup(call=cart_call, row_id=row_id)
+        functions.edit_item_in_cart(call=cart_call, row_id=row_id)
 
     except ApiTelegramException:
         pass
 
 
-def editable_plus(call):
+def plus_item(call):
 
     item_id = call.data.split()[1]
     row_id = int(call.data.split()[2])
@@ -120,33 +128,25 @@ def editable_plus(call):
 
         conn.commit()
 
-        functions.cart_edit_markup(call=call, row_id=row_id)
+        functions.edit_item_in_cart(call=call, row_id=row_id)
 
     except ApiTelegramException:
         pass
 
 
-def back_to_goods(call):
-
-    bot.edit_message_text(chat_id=call.from_user.id,
-                          message_id=call.message.id,
-                          text="You can choose our goods",
-                          reply_markup=markups.keyboard('start'))
-
-
-def edit_forw_items(call):
-
-    row_id = int(call.data.split()[1]) + 1
-    functions.edit_markup(call=call, row_id=row_id)
-
-
-def edit_reaw_items(call):
+def previous_item(call):
 
     row_id = int(call.data.split()[1]) - 1
-    functions.edit_markup(call=call, row_id=row_id)
+    functions.edit_cart_buttons(call=call, row_id=row_id)
 
 
-def close_editing(call):
+def next_item(call):
+
+    row_id = int(call.data.split()[1]) + 1
+    functions.edit_cart_buttons(call=call, row_id=row_id)
+
+
+def back_to_cart(call):
 
     conn = db.get_db()
     cur = conn.cursor()
@@ -158,7 +158,7 @@ def close_editing(call):
         return bot.send_message(chat_id=call.from_user.id,
                                 text="You bin is empty")
 
-    message_text, priority_text = functions.cart_function(call)
+    message_text, priority_text = functions.items_in_cart(call)
 
     bot.edit_message_text(chat_id=call.from_user.id,
                           message_id=call.message.id,
@@ -168,10 +168,10 @@ def close_editing(call):
 
 def init_bot():
     bot.register_callback_query_handler(callback=select_item, func=lambda call: call.data.startswith("item"))
-    bot.register_callback_query_handler(callback=editable_minus, func=lambda call: call.data.startswith("minus"))
-    bot.register_callback_query_handler(callback=rewrite_quantity, func=lambda call: call.data.startswith("rewrite"))
-    bot.register_callback_query_handler(callback=editable_plus, func=lambda call: call.data.startswith("plus"))
-    bot.register_callback_query_handler(callback=back_to_goods, func=lambda call: call.data == "continue")
-    bot.register_callback_query_handler(callback=edit_forw_items, func=lambda call: call.data.startswith("forward"))
-    bot.register_callback_query_handler(callback=edit_reaw_items, func=lambda call: call.data.startswith("reaward"))
-    bot.register_callback_query_handler(callback=close_editing, func=lambda call: call.data == "finish")
+    bot.register_callback_query_handler(callback=minus_item, func=lambda call: call.data.startswith("minus"))
+    bot.register_callback_query_handler(callback=item_quantity, func=lambda call: call.data.startswith("rewrite"))
+    bot.register_callback_query_handler(callback=plus_item, func=lambda call: call.data.startswith("plus"))
+    bot.register_callback_query_handler(callback=back_to_catalogue, func=lambda call: call.data == "continue")
+    bot.register_callback_query_handler(callback=next_item, func=lambda call: call.data.startswith("forward"))
+    bot.register_callback_query_handler(callback=previous_item, func=lambda call: call.data.startswith("reaward"))
+    bot.register_callback_query_handler(callback=back_to_cart, func=lambda call: call.data == "finish")

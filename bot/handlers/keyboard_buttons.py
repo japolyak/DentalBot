@@ -1,7 +1,33 @@
 from ..bot_token import bot
 from .. import db
-from ..markups import keyboard, cart_markup
-from ..functions import cart_function
+from ..markups import catalogue_markup, cart_markup
+from ..functions import items_in_cart
+
+
+def goods_handler(message):
+
+    bot.send_message(chat_id=message.chat.id,
+                     text="You can choose your goods",
+                     reply_markup=catalogue_markup())
+
+
+def cart_handler(message):
+
+    conn = db.get_db()
+    cur = conn.cursor()
+
+    cur.execute("""select * from bot_shop.shop_clientcarts where client_id = ?;""", (message.from_user.id,))
+    check = cur.next()
+
+    if not check:
+        return bot.send_message(chat_id=message.from_user.id,
+                                text="You cart is empty")
+
+    message_text, priority_text = items_in_cart(message)
+
+    bot.send_message(chat_id=message.from_user.id,
+                     text=message_text,
+                     reply_markup=cart_markup(priority_text))
 
 
 def profile_handler(message):
@@ -14,6 +40,7 @@ def profile_handler(message):
     existence = cur.next()
 
     if not existence:
+
         cur.execute("select client_name, client_address from bot_shop.shop_clients where client_id = ?;", (message.from_user.id, ))
 
         info = cur.next()
@@ -59,32 +86,6 @@ My main role is to process and confirmation orders from dental offices, but i ca
 
 P.S.
 If You want to have a quick word with my founder - dm him @japolyak""")
-
-
-def goods_handler(message):
-
-    bot.send_message(chat_id=message.chat.id,
-                     text="You can choose your goods",
-                     reply_markup=keyboard('start'))
-
-
-def cart_handler(message):
-
-    conn = db.get_db()
-    cur = conn.cursor()
-
-    cur.execute("""select * from bot_shop.shop_clientcarts where client_id = ?;""", (message.from_user.id,))
-    check = cur.next()
-
-    if not check:
-        return bot.send_message(chat_id=message.from_user.id,
-                                text="You cart is empty")
-
-    message_text, priority_text = cart_function(message)
-
-    bot.send_message(chat_id=message.from_user.id,
-                     text=message_text,
-                     reply_markup=cart_markup(priority_text))
 
 
 def init_bot():

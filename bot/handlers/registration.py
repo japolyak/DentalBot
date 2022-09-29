@@ -11,15 +11,15 @@ def start_move(message):
     cur = conn.cursor()
 
     cur.execute("""select * from bot_shop.shop_clients where client_id = ?;""", (user_id,))
-    check = cur.next()
+    user_exists = cur.next()
 
-    if check is None:
+    if not user_exists:
         cur.execute("insert into bot_shop.shop_clients (client_id, client_name, client_number, client_address)"
                     "values (?, ?, ?, ?);", (user_id, "Human", "+1234567890", "Earth"))
         conn.commit()
 
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        phone_button = types.KeyboardButton("Phone number", request_contact=True, )
+        phone_button = types.KeyboardButton(text="Phone number", request_contact=True, )
         markup.add(phone_button)
         bot.send_message(chat_id=message.chat.id,
                          text="You are not yet our customer\nEnter your number by pushing button below",

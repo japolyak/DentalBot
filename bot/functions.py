@@ -34,20 +34,17 @@ def buttons_menu(buttons, n_cols, header_buttons=None, footer_buttons=None):
     return menu
 
 
-def cart_function(message):
+def items_in_cart(message):
     conn = db.get_db()
     cur = conn.cursor()
 
-    while True:
-        cur.execute("""select priority from bot_shop.shop_cartmeta where client_id = ?;""", (message.from_user.id, ))
-        priority_inf = cur.next()
+    cur.execute("""select priority from bot_shop.shop_cartmeta where client_id = ?;""", (message.from_user.id, ))
+    cartmeta_exists = cur.next()
 
-        if not priority_inf:
-            cur.execute("""insert into bot_shop.shop_cartmeta (client_id, patient_name, deadline, term_time, description, priority)
-            values (?, ?, ?, ?, ?, ?);""", (message.from_user.id, "Patient", "2022-09-26", "18:00", "No", False))
-            conn.commit()
-            continue
-        break
+    if not cartmeta_exists:
+        cur.execute("""insert into bot_shop.shop_cartmeta (client_id, patient_name, deadline, term_time, description, priority)
+        values (?, ?, ?, ?, ?, ?);""", (message.from_user.id, "Patient", "2022-09-26", "18:00", "No", False))
+        conn.commit()
 
     cur.execute("""select
                             bot_shop.shop_clientcarts.client_id as client,
@@ -69,26 +66,26 @@ def cart_function(message):
     product_list = ""
     total_price = 0
 
-    while True:
-        row = cur.next()
-        if not row:
-            break
+    for row in cur:
         product_list += f"{row[1]}\n{row[4]} pcs x {row[2]} ₴ = {row[4] * row[2]} ₴\n\n"
         total_price += row[4] * row[2]
 
-    priority = 1
+    cur.execute("""select priority from bot_shop.shop_cartmeta where client_id = ?;""", (message.from_user.id, ))
+    cartmeta = cur.next()
+
+    priority_multiplier = 1
     priority_text = "Enable priority"
 
-    if priority_inf[0]:
-        priority = 1.3
+    if cartmeta[0]:
+        priority_multiplier = 1.3
         priority_text = "Disable priority"
 
-    text = f"""Cart\n\n----\n{product_list}----\nTogether: {total_price * priority} ₴"""
+    text = f"""Cart\n\n----\n{product_list}----\nTogether: {total_price * priority_multiplier} ₴"""
 
     return text, priority_text
 
 
-def confirmation_text(call):
+def order_details(call):
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -100,7 +97,7 @@ def confirmation_text(call):
     return text
 
 
-def new_fullname_description(call, back_msg, field):
+def new_fullname_or_description(call, back_msg, field):
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -115,11 +112,11 @@ def new_fullname_description(call, back_msg, field):
 
     bot.edit_message_text(chat_id=call.from_user.id,
                           message_id=back_msg,
-                          text=confirmation_text(call),
-                          reply_markup=markups.confirmation_markup())
+                          text=order_details(call),
+                          reply_markup=markups.order_confirmation_markup())
 
 
-def accept(call):
+def information_about_order(call):
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -148,13 +145,13 @@ def accept(call):
     conn.commit()
 
     cur.execute("""select * from bot_shop.shop_orders where order_id = ?;""", (row_id,))
-    common = cur.next()
+    order = cur.next()
 
-    priority = 1
+    priority_multiplier = 1
     priority_text = "Normal order"
 
-    if common[6]:
-        priority = 1.3
+    if order[6]:
+        priority_multiplier = 1.3
         priority_text = "Prioritized order (+30%)"
 
     cur.execute("""select
@@ -173,43 +170,40 @@ def accept(call):
     price = 0
     product_list = ""
 
-    while True:
-        row = cur.next()
-        if not row:
-            break
-        price += row[0] * row[2] * priority
+    for row in cur:
+        price += row[0] * row[2] * priority_multiplier
         product_list += f"{row[0]} pcs x {row[1]} - {row[0] * row[2]} ₴\n"
 
-    text = f"{priority_text} №{row_id}\nDeadline - {common[4]} on {common[3]}\nOrdered goods:\n{product_list}\nTotal summ: {price}"
+    text = f"{priority_text} №{row_id}\nDeadline - {order[4]} on {order[3]}\nOrdered goods:\n{product_list}\nTotal summ: {price}"
 
     return text
 
 
-def description_handler(call):
+def add_description(call):
     conn = db.get_db()
     cur = conn.cursor()
 
     cur.execute("""update bot_shop.shop_cartmeta set description = ? where client_id = ?;""", (call.text, call.from_user.id))
     conn.commit()
 
-    text = confirmation_text(call)
+    text = order_details(call)
 
     bot.send_message(chat_id=call.from_user.id,
                      text=text,
-                     reply_markup=markups.confirmation_markup())
+                     reply_markup=markups.order_confirmation_markup())
 
 
-def edit_markup(call, row_id=1):
-    n_item, items_quantity, row_id = editable_cart_item(call, row_id)
+def edit_cart_buttons(call, row_id=1):
+    n_item, items_quantity, row_id = info_about_item(call, row_id)
 
     markup = types.InlineKeyboardMarkup()
 
     patient = types.InlineKeyboardButton(text=f"{n_item[3]} pcs.|{n_item[1]}", callback_data=f"item {row_id}")
-    back = types.InlineKeyboardButton(text="Back to goods", callback_data="continue")
+    back = types.InlineKeyboardButton(text="Back to catalogue", callback_data="continue")
     back_move = types.InlineKeyboardButton(text="<--", callback_data=f"reaward {row_id}")
     in_item = types.InlineKeyboardButton(text=f"{row_id}/{items_quantity}", callback_data="anything")
     forvard_move = types.InlineKeyboardButton(text="-->", callback_data=f"forward {row_id}")
-    finish = types.InlineKeyboardButton(text="Finish editing", callback_data="finish")
+    finish = types.InlineKeyboardButton(text="Back to cart", callback_data="finish")
 
     markup.add(patient).add(back).add(back_move, in_item, forvard_move).add(finish)
 
@@ -219,20 +213,20 @@ def edit_markup(call, row_id=1):
                           reply_markup=markup)
 
 
-def cart_edit_markup(call, row_id):
-    n_item, items_quantity, row_id = editable_cart_item(call, row_id)
+def edit_item_in_cart(call, row_id):
+    n_item, items_quantity, row_id = info_about_item(call, row_id)
 
     markup = types.InlineKeyboardMarkup()
 
     minus_one = types.InlineKeyboardButton(text="-1", callback_data=f"minus {n_item[4]} {n_item[0]}")
     quantity = types.InlineKeyboardButton(text=f"{n_item[3]}", callback_data=f"rewrite {n_item[4]} {n_item[0]}")
     plus_one = types.InlineKeyboardButton(text="+1", callback_data=f"plus {n_item[4]} {n_item[0]}")
-    back = types.InlineKeyboardButton(text="Back to goods", callback_data="continue")
+    back = types.InlineKeyboardButton(text="Back to catalogue", callback_data="continue")
 
     back_move = types.InlineKeyboardButton(text="<--", callback_data=f"reaward {row_id}")
     in_item = types.InlineKeyboardButton(text=f"{row_id}/{items_quantity}", callback_data="anything")
     forvard_move = types.InlineKeyboardButton(text="-->", callback_data=f"forward {row_id}")
-    finish = types.InlineKeyboardButton(text="Finish editing", callback_data="finish")
+    finish = types.InlineKeyboardButton(text="Back to cart", callback_data="finish")
 
     markup.add(minus_one, quantity, plus_one).add(back).add(back_move, in_item, forvard_move).add(finish)
 
@@ -242,7 +236,7 @@ def cart_edit_markup(call, row_id):
                           reply_markup=markup)
 
 
-def editable_cart_item(call, row_id):
+def info_about_item(call, row_id):
     conn = db.get_db()
     cur = conn.cursor()
 

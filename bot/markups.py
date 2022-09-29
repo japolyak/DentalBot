@@ -31,7 +31,7 @@ def item_keyboard(person_id, item_id):
     plus_one = types.InlineKeyboardButton(text='+1', callback_data=f'+1 {item_id}')
     clear = types.InlineKeyboardButton(text='Clear', callback_data=f'clear {item_id}')
     cart = types.InlineKeyboardButton(text=f'{price * quantity}₴', callback_data=f'cart')
-    back = types.InlineKeyboardButton(text='Back', callback_data=f'back')
+    back = types.InlineKeyboardButton(text='Back to catalogue', callback_data=f'back')
 
     markup.add(minus_one, orders, plus_one).add(clear, cart).add(back)
 
@@ -52,7 +52,7 @@ def cart_markup(text):
     return markup
 
 
-def yes_no():
+def leave_description_markup():
 
     markup = types.InlineKeyboardMarkup()
 
@@ -64,7 +64,7 @@ def yes_no():
     return markup
 
 
-def confirmation_markup():
+def order_confirmation_markup():
 
     markup = types.InlineKeyboardMarkup()
 
@@ -92,28 +92,23 @@ def edit_details_markup():
     return markup
 
 
-def keyboard(call):
+def catalogue_markup():
 
-    if call == "start":
+    conn = db.get_db()
+    cur = conn.cursor()
 
-        conn = db.get_db()
-        cur = conn.cursor()
+    cur.execute("""select distinct category from bot_shop.shop_products;""")
+    list_of_goods = []
 
-        cur.execute("""select distinct category from bot_shop.shop_products;""")
-        list_of_goods = []
+    for row in cur:
+        list_of_goods.append(row[0])
 
-        while True:
-            category_item = cur.next()
-            if not category_item:
-                break
-            list_of_goods.append(category_item[0])
+    buttons = []
 
-        buttons = []
+    for good in list_of_goods:
+        buttons.append(types.InlineKeyboardButton(text=good,
+                                                  switch_inline_query_current_chat=good))
 
-        for good in list_of_goods:
-            buttons.append(types.InlineKeyboardButton(text=good,
-                                                      switch_inline_query_current_chat=good))
+    markup = types.InlineKeyboardMarkup(functions.buttons_menu(buttons, n_cols=1))
 
-        markup = types.InlineKeyboardMarkup(functions.buttons_menu(buttons, n_cols=1))
-
-        return markup
+    return markup
