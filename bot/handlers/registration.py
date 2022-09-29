@@ -10,11 +10,11 @@ def start_move(message):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""select * from bot_shop.shop_clients where client_id = ?;""", (user_id,))
+    cur.execute("""select * from  shop_clients where client_id = ?;""", (user_id,))
     user_exists = cur.next()
 
     if not user_exists:
-        cur.execute("insert into bot_shop.shop_clients (client_id, client_name, client_number, client_address)"
+        cur.execute("insert into  shop_clients (client_id, client_name, client_number, client_address)"
                     "values (?, ?, ?, ?);", (user_id, "Human", "+1234567890", "Earth"))
         conn.commit()
 
@@ -38,7 +38,7 @@ def check_phone(message):
     if not number.startswith("+"):
         number = "+" + number
 
-    cur.execute("""update bot_shop.shop_clients
+    cur.execute("""update  shop_clients
                     set
                         client_number = ?
                     where
@@ -58,7 +58,7 @@ def name_handler(message):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""update bot_shop.shop_clients
+    cur.execute("""update  shop_clients
                     set
                         client_name = ?
                     where
@@ -78,7 +78,7 @@ def address_handler(message):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""update bot_shop.shop_clients
+    cur.execute("""update  shop_clients
                     set
                         client_address = ?
                     where

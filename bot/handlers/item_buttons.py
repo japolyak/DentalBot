@@ -11,7 +11,7 @@ def minus_item(call):
         conn = db.get_db()
         cur = conn.cursor()
 
-        cur.execute("""delete from bot_shop.shop_clientcarts
+        cur.execute("""delete from  shop_clientcarts
                         where client_id = ? and product_id = ?
                         limit 1;""", (call.from_user.id, item_id,))
 
@@ -63,11 +63,11 @@ def entered_quantity(call, edit_msg, item_id, edit_markup):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""delete from bot_shop.shop_clientcarts where client_id = ? and product_id = ?;""", (call.from_user.id, item_id))
+    cur.execute("""delete from  shop_clientcarts where client_id = ? and product_id = ?;""", (call.from_user.id, item_id))
 
     while quantity != 0:
         quantity -= 1
-        cur.execute("""insert into bot_shop.shop_clientcarts (client_id, product_id) values (?, ?);""", (call.from_user.id, item_id))
+        cur.execute("""insert into  shop_clientcarts (client_id, product_id) values (?, ?);""", (call.from_user.id, item_id))
 
     conn.commit()
 
@@ -95,7 +95,7 @@ def plus_item(call):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""insert into bot_shop.shop_clientcarts (client_id, product_id)
+    cur.execute("""insert into  shop_clientcarts (client_id, product_id)
                     values (?, ?);""", (call.from_user.id, item_id,))
     conn.commit()
 
@@ -114,7 +114,7 @@ def delete_item(call):
         conn = db.get_db()
         cur = conn.cursor()
 
-        cur.execute("""delete from bot_shop.shop_clientcarts
+        cur.execute("""delete from  shop_clientcarts
                         where client_id = ? and product_id = ?;""", (call.from_user.id, item_id,))
         conn.commit()
         bot.edit_message_reply_markup(inline_message_id=call.inline_message_id,
@@ -128,7 +128,7 @@ def show_cart(call):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""select * from bot_shop.shop_clientcarts where client_id = ?;""", (call.from_user.id,))
+    cur.execute("""select * from  shop_clientcarts where client_id = ?;""", (call.from_user.id,))
     check = cur.next()
 
     if not check:

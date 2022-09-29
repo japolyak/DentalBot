@@ -33,7 +33,7 @@ def new_term(call, back_msg):
     cur = conn.cursor()
 
     try:
-        cur.execute("""update bot_shop.shop_cartmeta set deadline = ? where client_id = ?;""", (call.text, call.from_user.id))
+        cur.execute("""update  shop_cartmeta set deadline = ? where client_id = ?;""", (call.text, call.from_user.id))
         conn.commit()
 
     except OperationalError:
@@ -81,7 +81,7 @@ def new_time(call, back_msg):
     cur = conn.cursor()
 
     try:
-        cur.execute("""update bot_shop.shop_cartmeta set term_time = ? where client_id = ?;""", (call.text, call.from_user.id))
+        cur.execute("""update  shop_cartmeta set term_time = ? where client_id = ?;""", (call.text, call.from_user.id))
         conn.commit()
 
     except OperationalError:

@@ -16,7 +16,7 @@ def cart_handler(message):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""select * from bot_shop.shop_clientcarts where client_id = ?;""", (message.from_user.id,))
+    cur.execute("""select * from  shop_clientcarts where client_id = ?;""", (message.from_user.id,))
     check = cur.next()
 
     if not check:
@@ -35,13 +35,13 @@ def profile_handler(message):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("select * from bot_shop.shop_orders where client_id = ?;", (message.from_user.id, ))
+    cur.execute("select * from  shop_orders where client_id = ?;", (message.from_user.id, ))
 
     existence = cur.next()
 
     if not existence:
 
-        cur.execute("select client_name, client_address from bot_shop.shop_clients where client_id = ?;", (message.from_user.id, ))
+        cur.execute("select client_name, client_address from  shop_clients where client_id = ?;", (message.from_user.id, ))
 
         info = cur.next()
 
@@ -51,18 +51,18 @@ def profile_handler(message):
         return
 
     cur.execute("""select
-                        bot_shop.shop_clients.client_name as client,
-                        bot_shop.shop_clients.client_address as adress,
+                         shop_clients.client_name as client,
+                         shop_clients.client_address as adress,
                         a.count as count
-                    from bot_shop.shop_clients
+                    from  shop_clients
                     inner join (select
                                     client_id,
                                     count(*) as "count"
-                                from bot_shop.shop_orders
+                                from  shop_orders
                                 where client_id = ?
                                 group by client_id) as a
-                    on bot_shop.shop_clients.client_id = a.client_id
-                    where bot_shop.shop_clients.client_id = ?
+                    on  shop_clients.client_id = a.client_id
+                    where  shop_clients.client_id = ?
                     group by
                         client,
                         adress,

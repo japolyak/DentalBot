@@ -8,12 +8,12 @@ def item_keyboard(person_id, item_id):
     cur = conn.cursor()
 
     cur.execute("""select
-                    bot_shop.shop_products.price as price,
+                     shop_products.price as price,
                     count(*) as "count"
-                    from bot_shop.shop_clientcarts
-                    inner join bot_shop.shop_products
-                    on bot_shop.shop_clientcarts.product_id = bot_shop.shop_products.id
-                    where bot_shop.shop_clientcarts.product_id = ? and bot_shop.shop_clientcarts.client_id = ?
+                    from  shop_clientcarts
+                    inner join  shop_products
+                    on  shop_clientcarts.product_id =  shop_products.id
+                    where  shop_clientcarts.product_id = ? and  shop_clientcarts.client_id = ?
                     group by price;""", (item_id, person_id))
 
     item_quantity = cur.next()
@@ -97,7 +97,7 @@ def catalogue_markup():
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""select distinct category from bot_shop.shop_products;""")
+    cur.execute("""select distinct category from  shop_products;""")
     list_of_goods = []
 
     for row in cur:

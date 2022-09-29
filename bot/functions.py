@@ -38,24 +38,24 @@ def items_in_cart(message):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""select priority from bot_shop.shop_cartmeta where client_id = ?;""", (message.from_user.id, ))
+    cur.execute("""select priority from  shop_cartmeta where client_id = ?;""", (message.from_user.id, ))
     cartmeta_exists = cur.next()
 
     if not cartmeta_exists:
-        cur.execute("""insert into bot_shop.shop_cartmeta (client_id, patient_name, deadline, term_time, description, priority)
+        cur.execute("""insert into shop_cartmeta (client_id, patient_name, deadline, term_time, description, priority)
         values (?, ?, ?, ?, ?, ?);""", (message.from_user.id, "Patient", "2022-09-26", "18:00", "No", False))
         conn.commit()
 
     cur.execute("""select
-                            bot_shop.shop_clientcarts.client_id as client,
-                            bot_shop.shop_products.product_name as name,
-                            bot_shop.shop_products.price as price,
-                            bot_shop.shop_clientcarts.product_id as product_id,
+                             shop_clientcarts.client_id as client,
+                             shop_products.product_name as name,
+                             shop_products.price as price,
+                             shop_clientcarts.product_id as product_id,
                             count(*) AS "count"
-                        from bot_shop.shop_clientcarts
-                        inner join bot_shop.shop_products
-                        on bot_shop.shop_clientcarts.product_id = bot_shop.shop_products.id
-                        where bot_shop.shop_clientcarts.client_id = ?
+                        from  shop_clientcarts
+                        inner join  shop_products
+                        on  shop_clientcarts.product_id =  shop_products.id
+                        where  shop_clientcarts.client_id = ?
                         group by
                             client,
                             product_id,
@@ -70,7 +70,7 @@ def items_in_cart(message):
         product_list += f"{row[1]}\n{row[4]} pcs x {row[2]} ₴ = {row[4] * row[2]} ₴\n\n"
         total_price += row[4] * row[2]
 
-    cur.execute("""select priority from bot_shop.shop_cartmeta where client_id = ?;""", (message.from_user.id, ))
+    cur.execute("""select priority from  shop_cartmeta where client_id = ?;""", (message.from_user.id, ))
     cartmeta = cur.next()
 
     priority_multiplier = 1
@@ -89,7 +89,7 @@ def order_details(call):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""select patient_name, deadline, term_time, description from bot_shop.shop_cartmeta where client_id = ?;""", (call.from_user.id, ))
+    cur.execute("""select patient_name, deadline, term_time, description from  shop_cartmeta where client_id = ?;""", (call.from_user.id, ))
     details = cur.next()
 
     text = f"Patient full name: {details[0]}\nTerm: {details[1]}\nTime: {details[2]}\nDescription: {details[3]}"
@@ -102,9 +102,9 @@ def new_fullname_or_description(call, back_msg, field):
     cur = conn.cursor()
 
     if field == "fullname":
-        cur.execute("""update bot_shop.shop_cartmeta set patient_name = ? where client_id = ?;""", (call.text, call.from_user.id))
+        cur.execute("""update  shop_cartmeta set patient_name = ? where client_id = ?;""", (call.text, call.from_user.id))
     elif field == "description":
-        cur.execute("""update bot_shop.shop_cartmeta set description = ? where client_id = ?;""", (call.text, call.from_user.id))
+        cur.execute("""update  shop_cartmeta set description = ? where client_id = ?;""", (call.text, call.from_user.id))
     conn.commit()
 
     bot.delete_message(chat_id=call.from_user.id,
@@ -120,31 +120,31 @@ def information_about_order(call):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""insert into bot_shop.shop_orders (client_id, patient_name, deadline, term_time, description, priority)
+    cur.execute("""insert into shop_orders (client_id, patient_name, deadline, term_time, description, priority)
                     select client_id, patient_name, deadline, term_time, description, priority
-                    from bot_shop.shop_cartmeta
+                    from  shop_cartmeta
                     where client_id = ?;""", (call.from_user.id, ))
     row_id = cur.lastrowid
 
-    cur.execute("""insert into bot_shop.shop_orderedgoods (order_id, product_id, quantity)
+    cur.execute("""insert into  shop_orderedgoods (order_id, product_id, quantity)
                     select
                         ? as client,
                         product_id as product_id,
                         count(*) AS "count"
-                    from bot_shop.shop_clientcarts
+                    from  shop_clientcarts
                     
-                    where bot_shop.shop_clientcarts.client_id = ?
+                    where  shop_clientcarts.client_id = ?
                     group by
                         client,
                         product_id
                     order by count;""", (row_id, call.from_user.id,))
 
-    cur.execute("""delete from bot_shop.shop_cartmeta where client_id = ?;""", (call.from_user.id, ))
-    cur.execute("""delete from bot_shop.shop_clientcarts where client_id = ?;""", (call.from_user.id,))
+    cur.execute("""delete from  shop_cartmeta where client_id = ?;""", (call.from_user.id, ))
+    cur.execute("""delete from  shop_clientcarts where client_id = ?;""", (call.from_user.id,))
 
     conn.commit()
 
-    cur.execute("""select * from bot_shop.shop_orders where order_id = ?;""", (row_id,))
+    cur.execute("""select * from  shop_orders where order_id = ?;""", (row_id,))
     order = cur.next()
 
     priority_multiplier = 1
@@ -155,13 +155,13 @@ def information_about_order(call):
         priority_text = "Prioritized order (+30%)"
 
     cur.execute("""select
-                        bot_shop.shop_orderedgoods.quantity as quantity,
-                        bot_shop.shop_products.product_name as name,
-                        bot_shop.shop_products.price as price
-                    from bot_shop.shop_orderedgoods
-                    inner join bot_shop.shop_products
-                    on bot_shop.shop_orderedgoods.product_id = bot_shop.shop_products.id
-                    where bot_shop.shop_orderedgoods.order_id = ?
+                         shop_orderedgoods.quantity as quantity,
+                         shop_products.product_name as name,
+                         shop_products.price as price
+                    from  shop_orderedgoods
+                    inner join  shop_products
+                    on  shop_orderedgoods.product_id =  shop_products.id
+                    where  shop_orderedgoods.order_id = ?
                     group by
                         name,
                         price,
@@ -183,7 +183,7 @@ def add_description(call):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""update bot_shop.shop_cartmeta set description = ? where client_id = ?;""", (call.text, call.from_user.id))
+    cur.execute("""update  shop_cartmeta set description = ? where client_id = ?;""", (call.text, call.from_user.id))
     conn.commit()
 
     text = order_details(call)
@@ -243,7 +243,7 @@ def info_about_item(call, row_id):
     cur.execute("""select count(*) 
                         from 
                             (select distinct product_id 
-                             from bot_shop.shop_clientcarts 
+                             from  shop_clientcarts 
                              where client_id = ?) as b;""", (call.from_user.id,))
 
     items_quantity = int(cur.next()[0])
@@ -257,15 +257,15 @@ def info_about_item(call, row_id):
     cur.execute("""select row_num, name, price, count, product_id, client from
                         (select row_number() over () as row_num, name, price, count, product_id, client from
                         (select
-                            bot_shop.shop_clientcarts.client_id as client,
-                            bot_shop.shop_products.product_name as name,
-                            bot_shop.shop_products.price as price,
-                            bot_shop.shop_clientcarts.product_id as product_id,
+                             shop_clientcarts.client_id as client,
+                             shop_products.product_name as name,
+                             shop_products.price as price,
+                             shop_clientcarts.product_id as product_id,
                             count(*) AS "count"
-                        from bot_shop.shop_clientcarts
-                        inner join bot_shop.shop_products
-                        on bot_shop.shop_clientcarts.product_id = bot_shop.shop_products.id
-                        where bot_shop.shop_clientcarts.client_id = ?
+                        from  shop_clientcarts
+                        inner join  shop_products
+                        on  shop_clientcarts.product_id =  shop_products.id
+                        where  shop_clientcarts.client_id = ?
                         group by
                             client,
                             product_id,

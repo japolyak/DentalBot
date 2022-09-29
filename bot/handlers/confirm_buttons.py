@@ -22,8 +22,8 @@ def cancel_order(call):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""delete from bot_shop.shop_cartmeta where client_id = ?;""", (call.from_user.id, ))
-    cur.execute("""delete from bot_shop.shop_clientcarts where client_id = ?;""", (call.from_user.id,))
+    cur.execute("""delete from  shop_cartmeta where client_id = ?;""", (call.from_user.id, ))
+    cur.execute("""delete from  shop_clientcarts where client_id = ?;""", (call.from_user.id,))
     conn.commit()
 
     bot.edit_message_text(chat_id=call.from_user.id,

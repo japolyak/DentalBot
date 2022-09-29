@@ -13,9 +13,9 @@ def empty_cart(call):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""delete from bot_shop.shop_clientcarts
+    cur.execute("""delete from  shop_clientcarts
                     where client_id = ?;""", (call.from_user.id,))
-    cur.execute("""delete from bot_shop.shop_cartmeta
+    cur.execute("""delete from  shop_cartmeta
                     where client_id = ?;""", (call.from_user.id,))
     conn.commit()
     bot.edit_message_text(text="You cart is empty",
@@ -28,15 +28,15 @@ def set_priority(call):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""select priority from bot_shop.shop_cartmeta where client_id = ?;""", (call.from_user.id,))
+    cur.execute("""select priority from  shop_cartmeta where client_id = ?;""", (call.from_user.id,))
     priority_status = cur.next()[0]
 
     if priority_status:
-        cur.execute("""update bot_shop.shop_cartmeta set priority = ? where client_id = ?;""", (0, call.from_user.id))
+        cur.execute("""update  shop_cartmeta set priority = ? where client_id = ?;""", (0, call.from_user.id))
         conn.commit()
 
     else:
-        cur.execute("""update bot_shop.shop_cartmeta set priority = ? where client_id = ?;""", (1, call.from_user.id))
+        cur.execute("""update  shop_cartmeta set priority = ? where client_id = ?;""", (1, call.from_user.id))
         conn.commit()
 
     message_text, priority_text = functions.items_in_cart(call)
@@ -51,11 +51,11 @@ def confirm_order(call):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""select * from bot_shop.shop_cartmeta where client_id = ?;""", (call.from_user.id,))
+    cur.execute("""select * from shop_cartmeta where client_id = ?;""", (call.from_user.id,))
     check = cur.next()
 
     if not check:
-        cur.execute("""insert into bot_shop.shop_cartmeta (client_id, patient_name, deadline, term_time, description, priority)
+        cur.execute("""insert into shop_cartmeta (client_id, patient_name, deadline, term_time, description, priority)
             values (?, ?, ?, ?, ?, ?);""", (call.from_user.id, "Patient", "2022-09-26", "18:00", "No", False))
         conn.commit()
 
@@ -74,7 +74,7 @@ def patient_handler(call, dell_msg):
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("""update bot_shop.shop_cartmeta set patient_name = ? where client_id = ?;""", (call.text, call.from_user.id))
+    cur.execute("""update  shop_cartmeta set patient_name = ? where client_id = ?;""", (call.text, call.from_user.id))
     conn.commit()
 
     bot.delete_message(chat_id=call.from_user.id,
@@ -96,7 +96,7 @@ def deadline_handler(call, edit_msg):
     cur = conn.cursor()
 
     try:
-        cur.execute("""update bot_shop.shop_cartmeta set deadline = ? where client_id = ?;""", (call.text, call.from_user.id))
+        cur.execute("""update  shop_cartmeta set deadline = ? where client_id = ?;""", (call.text, call.from_user.id))
         conn.commit()
 
     except OperationalError:
@@ -137,7 +137,7 @@ def term_time_handler(call, edit_msg):
     cur = conn.cursor()
 
     try:
-        cur.execute("""update bot_shop.shop_cartmeta set term_time = ? where client_id = ?;""", (call.text, call.from_user.id))
+        cur.execute("""update  shop_cartmeta set term_time = ? where client_id = ?;""", (call.text, call.from_user.id))
         conn.commit()
 
     except OperationalError:

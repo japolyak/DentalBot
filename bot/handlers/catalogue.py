@@ -13,7 +13,7 @@ def inline_query(query):
     inline_id = 1
     inline_items = []
 
-    cur.execute("""select id, product_name, price  from bot_shop.shop_products where category = ?;""", (category,))
+    cur.execute("""select id, product_name, price  from  shop_products where category = ?;""", (category,))
 
     for inline_info in cur:
         but = types.InlineQueryResultArticle(
