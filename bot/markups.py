@@ -3,6 +3,9 @@ from telebot import types
 
 
 def item_keyboard(person_id, item_id):
+    """
+    Item change buttons
+    """
 
     conn = db.get_db()
     cur = conn.cursor()
@@ -30,8 +33,8 @@ def item_keyboard(person_id, item_id):
     orders = types.InlineKeyboardButton(text=f'{quantity} pcs', callback_data=f'quantity {item_id}')
     plus_one = types.InlineKeyboardButton(text='+1', callback_data=f'+1 {item_id}')
     clear = types.InlineKeyboardButton(text='Clear', callback_data=f'clear {item_id}')
-    cart = types.InlineKeyboardButton(text=f'{price * quantity}₴', callback_data=f'cart')
-    back = types.InlineKeyboardButton(text='Back to catalogue', callback_data=f'back')
+    cart = types.InlineKeyboardButton(text=f'{price * quantity}₴', callback_data='cart')
+    back = types.InlineKeyboardButton(text='Back to catalogue', callback_data='back')
 
     markup.add(minus_one, orders, plus_one).add(clear, cart).add(back)
 
@@ -39,6 +42,9 @@ def item_keyboard(person_id, item_id):
 
 
 def cart_markup(text):
+    """
+    Cart action buttons
+    """
 
     markup = types.InlineKeyboardMarkup()
 
@@ -53,6 +59,9 @@ def cart_markup(text):
 
 
 def leave_description_markup():
+    """
+    Description add or skip buttons
+    """
 
     markup = types.InlineKeyboardMarkup()
 
@@ -65,6 +74,9 @@ def leave_description_markup():
 
 
 def order_confirmation_markup():
+    """
+    Buttons of the last step in order realization
+    """
 
     markup = types.InlineKeyboardMarkup()
 
@@ -78,6 +90,9 @@ def order_confirmation_markup():
 
 
 def edit_details_markup():
+    """
+    Order detail change buttons
+    """
 
     markup = types.InlineKeyboardMarkup()
 
@@ -93,6 +108,9 @@ def edit_details_markup():
 
 
 def catalogue_markup():
+    """
+    Return categories buttons
+    """
 
     conn = db.get_db()
     cur = conn.cursor()

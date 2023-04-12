@@ -4,6 +4,9 @@ from . import db, markups
 
 
 def welcome_word(message):
+    """
+    Sends welcome message after registration with sticky buttons
+    """
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
 
     position_button = types.KeyboardButton("Goods")
@@ -22,7 +25,9 @@ def welcome_word(message):
 
 
 def buttons_menu(buttons, n_cols, header_buttons=None, footer_buttons=None):
-
+    """
+    Makes markup buttons in one column table
+    """
     menu = [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]
 
     if header_buttons:
@@ -35,6 +40,9 @@ def buttons_menu(buttons, n_cols, header_buttons=None, footer_buttons=None):
 
 
 def items_in_cart(message):
+    """
+    Returns info about items in cart and order priority
+    """
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -86,6 +94,9 @@ def items_in_cart(message):
 
 
 def order_details(call):
+    """
+    Returns order details
+    """
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -98,6 +109,10 @@ def order_details(call):
 
 
 def new_fullname_or_description(call, back_msg, field):
+    """
+    Edits patient fullname or order discription
+    """
+
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -117,6 +132,11 @@ def new_fullname_or_description(call, back_msg, field):
 
 
 def information_about_order(call):
+    """
+    Inserts information about the confirmed order and goods in two tables
+    Returns all information about current accepted order
+    """
+
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -180,6 +200,10 @@ def information_about_order(call):
 
 
 def add_description(call):
+    """
+    Updates order's description
+    """
+
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -194,6 +218,10 @@ def add_description(call):
 
 
 def edit_cart_buttons(call, row_id=1):
+    """
+    Shows info about item in cart menu
+    """
+
     n_item, items_quantity, row_id = info_about_item(call, row_id)
 
     markup = types.InlineKeyboardMarkup()
@@ -214,6 +242,10 @@ def edit_cart_buttons(call, row_id=1):
 
 
 def edit_item_in_cart(call, row_id):
+    """
+    Change menu for a selected item in the cart
+    """
+
     n_item, items_quantity, row_id = info_about_item(call, row_id)
 
     markup = types.InlineKeyboardMarkup()
@@ -237,6 +269,9 @@ def edit_item_in_cart(call, row_id):
 
 
 def info_about_item(call, row_id):
+    """
+    Returns info about item in cart menu
+    """
     conn = db.get_db()
     cur = conn.cursor()
 

@@ -3,7 +3,9 @@ from .. import functions, markups
 
 
 def add_description(call):
-
+    """
+    Allows user to add description
+    """
     msg = bot.edit_message_text(chat_id=call.from_user.id,
                                 message_id=call.message.id,
                                 text="Enter description")
@@ -13,7 +15,9 @@ def add_description(call):
 
 
 def show_order(call):
-
+    """
+    Skips description adding
+    """
     text = functions.order_details(call)
 
     bot.edit_message_text(chat_id=call.from_user.id,

@@ -3,13 +3,18 @@ from .. import db, functions, markups
 
 
 def confirm_order(call):
-
+    """
+    Confirms order and change last message to info about order
+    """
     bot.edit_message_text(chat_id=call.from_user.id,
                           message_id=call.message.id,
                           text=functions.information_about_order(call))
 
 
 def edit_details(call):
+    """
+    Allows user to change details of the order
+    """
 
     bot.edit_message_text(text="Choose what do you whant to change",
                           chat_id=call.from_user.id,
@@ -18,7 +23,9 @@ def edit_details(call):
 
 
 def cancel_order(call):
-
+    """
+    Deletes everything associated with the order
+    """
     conn = db.get_db()
     cur = conn.cursor()
 

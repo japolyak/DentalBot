@@ -4,12 +4,17 @@ from telebot.apihelper import ApiTelegramException
 
 
 def select_item(call):
-
+    """
+    Selects item and shows it's info
+    """
     row_id = int(call.data.split()[1])
     functions.edit_item_in_cart(call=call, row_id=row_id)
 
 
 def back_to_catalogue(call):
+    """
+    Edits last user's message by changing its buttons and text to catalogue
+    """
 
     bot.edit_message_text(chat_id=call.from_user.id,
                           message_id=call.message.id,
@@ -18,6 +23,9 @@ def back_to_catalogue(call):
 
 
 def minus_item(call):
+    """
+    Removes selected item from user's cart in cart message
+    """
 
     item_id = call.data.split()[1]
     row_id = int(call.data.split()[2])
@@ -45,7 +53,9 @@ def minus_item(call):
 
 
 def item_quantity(call):
-
+    """
+    Asks user to enter the desired item's amount
+    """
     item_id = call.data.split()[1]
     row_id = int(call.data.split()[2])
 
@@ -61,7 +71,9 @@ def item_quantity(call):
 
 
 def quantity_handler(call, edit_msg, item_id, row_id, cart_call):
-
+    """
+    Updates item's quantity in user's cart
+    """
     try:
         quantity = int(call.text)
 
@@ -115,7 +127,9 @@ def quantity_handler(call, edit_msg, item_id, row_id, cart_call):
 
 
 def plus_item(call):
-
+    """
+    Adds selected item to user's cart in cart message
+    """
     item_id = call.data.split()[1]
     row_id = int(call.data.split()[2])
 
@@ -135,18 +149,25 @@ def plus_item(call):
 
 
 def previous_item(call):
-
+    """
+    Switches to previous item in cart message
+    """
     row_id = int(call.data.split()[1]) - 1
     functions.edit_cart_buttons(call=call, row_id=row_id)
 
 
 def next_item(call):
-
+    """
+    Switches to next item in cart message
+    """
     row_id = int(call.data.split()[1]) + 1
     functions.edit_cart_buttons(call=call, row_id=row_id)
 
 
 def back_to_cart(call):
+    """
+    Edits last message to cart message - shows info about items in the cart
+    """
 
     conn = db.get_db()
     cur = conn.cursor()
@@ -156,7 +177,7 @@ def back_to_cart(call):
 
     if not check:
         return bot.send_message(chat_id=call.from_user.id,
-                                text="You bin is empty")
+                                text="You cart is empty")
 
     message_text, priority_text = functions.items_in_cart(call)
 

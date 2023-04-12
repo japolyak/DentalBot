@@ -5,7 +5,9 @@ from mariadb import OperationalError
 
 
 def edit_fullname(call):
-
+    """
+    Asks user to enter new name of the patient
+    """
     back_msg = bot.edit_message_text(chat_id=call.from_user.id,
                                      message_id=call.message.id,
                                      text="Enter new fullname of the patient")
@@ -17,7 +19,9 @@ def edit_fullname(call):
 
 
 def edit_day(call):
-
+    """
+    Asks user to enter new deadline of order realisation
+    """
     back_msg = bot.edit_message_text(chat_id=call.from_user.id,
                                      message_id=call.message.id,
                                      text="Enter new term")
@@ -28,7 +32,9 @@ def edit_day(call):
 
 
 def new_term(call, back_msg):
-
+    """
+    Edits order realisation deadline
+    """
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -65,7 +71,9 @@ def new_term(call, back_msg):
 
 
 def edit_time(call):
-
+    """
+    Asks user to enter new time of order realisation
+    """
     back_msg = bot.edit_message_text(chat_id=call.from_user.id,
                                      message_id=call.message.id,
                                      text="Enter new time")
@@ -76,7 +84,9 @@ def edit_time(call):
 
 
 def new_time(call, back_msg):
-
+    """
+    Edits order realisation time
+    """
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -113,7 +123,9 @@ def new_time(call, back_msg):
 
 
 def edit_description(call):
-
+    """
+    Asks user to enter new order description
+    """
     back_msg = bot.edit_message_text(chat_id=call.from_user.id,
                                      message_id=call.message.id,
                                      text="Enter new description")
@@ -125,7 +137,9 @@ def edit_description(call):
 
 
 def edit_tech_info(call):
-
+    """
+    Returns user on the last step in order realization
+    """
     bot.edit_message_text(chat_id=call.from_user.id,
                           message_id=call.message.id,
                           text=functions.order_details(call),

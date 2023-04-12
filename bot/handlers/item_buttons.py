@@ -4,6 +4,9 @@ from telebot.apihelper import ApiTelegramException
 
 
 def minus_item(call):
+    """
+    Removes from user's cart one selected item by its id
+    """
 
     item_id = call.data.split()[1]
 
@@ -23,6 +26,9 @@ def minus_item(call):
 
 
 def item_quantity(call):
+    """
+    Asks user about the quantity of selected item to be added to cart
+    """
 
     item_id = call.data.split()[1]
 
@@ -37,6 +43,9 @@ def item_quantity(call):
 
 
 def entered_quantity(call, edit_msg, item_id, edit_markup):
+    """
+    Adds a user-defined amount of items to the cart
+    """
 
     try:
         quantity = int(call.text)
@@ -89,6 +98,9 @@ def entered_quantity(call, edit_msg, item_id, edit_markup):
 
 
 def plus_item(call):
+    """
+    Adds one selected item to user's cart
+    """
 
     item_id = call.data.split()[1]
 
@@ -107,6 +119,9 @@ def plus_item(call):
 
 
 def delete_item(call):
+    """
+    Deletes from user's cart selected item by its id
+    """
 
     item_id = call.data.split()[1]
 
@@ -124,6 +139,9 @@ def delete_item(call):
 
 
 def show_cart(call):
+    """
+    Gets all users items from user's cart by user's id
+    """
 
     conn = db.get_db()
     cur = conn.cursor()
@@ -143,6 +161,9 @@ def show_cart(call):
 
 
 def back_to_catalogue(call):
+    """
+    Edits last user's message by changing its buttons and text to catalogue
+    """
 
     bot.edit_message_text(text="Hi, You can choose one of our goods!",
                           inline_message_id=call.inline_message_id,

@@ -5,11 +5,16 @@ from telebot.apihelper import ApiTelegramException
 
 
 def edit_items(call):
+    """
+    Allows user to see info about each item in cart and chage it
+    """
     functions.edit_cart_buttons(call)
 
 
 def empty_cart(call):
-
+    """
+    Removing items from the cart and removing an order from the temporary table
+    """
     conn = db.get_db()
     cur = conn.cursor()
 
@@ -24,6 +29,9 @@ def empty_cart(call):
 
 
 def set_priority(call):
+    """
+    Sets/removes order's priority
+    """
 
     conn = db.get_db()
     cur = conn.cursor()
@@ -47,6 +55,10 @@ def set_priority(call):
 
 
 def confirm_order(call):
+    """
+    Creates an order in temporary table
+    Starts funnel of order's confirmatiion
+    """
 
     conn = db.get_db()
     cur = conn.cursor()
@@ -70,6 +82,9 @@ def confirm_order(call):
 
 
 def patient_handler(call, dell_msg):
+    """
+    Responds to sharing name, updates it and activates the next confirmation step - getting a date
+    """
 
     conn = db.get_db()
     cur = conn.cursor()
@@ -91,6 +106,9 @@ def patient_handler(call, dell_msg):
 
 
 def deadline_handler(call, edit_msg):
+    """
+    Responds to sharing date, updates it and activates the next confirmation step - getting a time
+    """
 
     conn = db.get_db()
     cur = conn.cursor()
@@ -132,6 +150,9 @@ def deadline_handler(call, edit_msg):
 
 
 def term_time_handler(call, edit_msg):
+    """
+    Responds to sharing time, updates it and activates the last confirmation step - getting a description
+    """
 
     conn = db.get_db()
     cur = conn.cursor()

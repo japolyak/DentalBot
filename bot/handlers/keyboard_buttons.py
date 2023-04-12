@@ -5,13 +5,18 @@ from ..functions import items_in_cart
 
 
 def goods_handler(message):
-
+    """
+    Sends a message with buttons to select a product category
+    """
     bot.send_message(chat_id=message.chat.id,
                      text="You can choose your goods",
                      reply_markup=catalogue_markup())
 
 
 def cart_handler(message):
+    """
+    Sends a message with information about the status of the cart
+    """
 
     conn = db.get_db()
     cur = conn.cursor()
@@ -31,17 +36,19 @@ def cart_handler(message):
 
 
 def profile_handler(message):
-
+    """
+    Sends a message with information about the number of realized orders
+    """
     conn = db.get_db()
     cur = conn.cursor()
 
-    cur.execute("select * from  shop_orders where client_id = ?;", (message.from_user.id, ))
+    cur.execute("select * from shop_orders where client_id = ?;", (message.from_user.id, ))
 
     existence = cur.next()
 
     if not existence:
 
-        cur.execute("select client_name, client_address from  shop_clients where client_id = ?;", (message.from_user.id, ))
+        cur.execute("select client_name, client_address from shop_clients where client_id = ?;", (message.from_user.id, ))
 
         info = cur.next()
 
@@ -54,15 +61,15 @@ def profile_handler(message):
                          shop_clients.client_name as client,
                          shop_clients.client_address as adress,
                         a.count as count
-                    from  shop_clients
+                    from shop_clients
                     inner join (select
                                     client_id,
                                     count(*) as "count"
                                 from  shop_orders
                                 where client_id = ?
                                 group by client_id) as a
-                    on  shop_clients.client_id = a.client_id
-                    where  shop_clients.client_id = ?
+                    on shop_clients.client_id = a.client_id
+                    where shop_clients.client_id = ?
                     group by
                         client,
                         adress,
@@ -75,7 +82,9 @@ def profile_handler(message):
 
 
 def info_handler(message):
-
+    """
+    Sends a message with information about the bot
+    """
     bot.send_message(chat_id=message.chat.id,
                      text="""
 Hi, I'm Dental Bot!
@@ -85,7 +94,7 @@ I was built on Python's TelegramBotApi framework with using of MariaDB database 
 My main role is to process and confirmation orders from dental offices, but i can be modified on your personal needs.
 
 P.S.
-If You want to have a quick word with my founder - dm him @japolyak""")
+If You want to have a quick word with my founder - text him @japolyak""")
 
 
 def init_bot():

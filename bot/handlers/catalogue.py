@@ -5,7 +5,9 @@ from ..markups import item_keyboard
 
 
 def inline_query(query):
-
+    """
+    Gets info about products for selected category
+    """
     category = query.query
     conn = db.get_db()
     cur = conn.cursor()

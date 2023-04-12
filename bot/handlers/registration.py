@@ -5,6 +5,11 @@ from .. import db
 
 
 def start_move(message):
+    """
+    Sends message in reply to /start command
+    Starts registration funnel with new customer by asking to share the number
+    """
+
     user_id = message.from_user.id
 
     conn = db.get_db()
@@ -29,6 +34,9 @@ def start_move(message):
 
 
 def check_phone(message):
+    """
+    Responds to sharing number, updates it and activates the next registration step - getting a name
+    """
 
     conn = db.get_db()
     cur = conn.cursor()
@@ -54,6 +62,9 @@ def check_phone(message):
 
 
 def name_handler(message):
+    """
+    Responds to sharing name, updates it and activates the next registration step - getting an address
+    """
 
     conn = db.get_db()
     cur = conn.cursor()
@@ -74,7 +85,9 @@ def name_handler(message):
 
 
 def address_handler(message):
-
+    """
+    Responds to sharing address, updates it and sends welcome word
+    """
     conn = db.get_db()
     cur = conn.cursor()
 
